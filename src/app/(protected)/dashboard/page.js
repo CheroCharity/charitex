@@ -13,9 +13,9 @@ import { getProductsWithStock, getTransactions } from "@/services/stockService";
 import { computeInventorySummary } from "@/utils/inventory";
 
 function toCurrency(value) {
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat("en-KE", {
     style: "currency",
-    currency: "USD",
+    currency: "KES",
     maximumFractionDigits: 2,
   }).format(Number(value || 0));
 }

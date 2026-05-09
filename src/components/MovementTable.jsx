@@ -15,9 +15,9 @@ import {
 import { format } from "date-fns";
 
 function toCurrency(value) {
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat("en-KE", {
     style: "currency",
-    currency: "USD",
+    currency: "KES",
     maximumFractionDigits: 2,
   }).format(Number(value || 0));
 }
