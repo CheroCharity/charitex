@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Alert,
@@ -17,6 +17,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function LoginClient() {
+  const isMountedRef = useRef(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextUrl = useMemo(() => searchParams.get("next") || "/dashboard", [searchParams]);
@@ -33,7 +34,12 @@ export default function LoginClient() {
   };
 
   useEffect(() => {
+    isMountedRef.current = true;
     setMounted(true);
+
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -63,8 +69,10 @@ export default function LoginClient() {
       await signIn(form.email, form.password);
       router.replace(nextUrl);
     } catch (err) {
+      if (!isMountedRef.current) return;
       setError(err.message || "Authentication failed");
     } finally {
+      if (!isMountedRef.current) return;
       setLoading(false);
     }
   };

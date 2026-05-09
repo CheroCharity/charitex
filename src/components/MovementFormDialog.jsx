@@ -14,9 +14,13 @@ import {
   MenuItem,
   Select,
   TextField,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 
 export default function MovementFormDialog({ open, onClose, onSubmit, products, allowedTypes = ["IN", "OUT"] }) {
+  const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const [form, setForm] = useState({
     productId: "",
     quantity: "",
@@ -55,7 +59,7 @@ export default function MovementFormDialog({ open, onClose, onSubmit, products, 
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={fullScreen}>
       <DialogTitle>Add Stock Transaction</DialogTitle>
       <DialogContent>
         <Box
@@ -164,9 +168,11 @@ export default function MovementFormDialog({ open, onClose, onSubmit, products, 
           </Box>
         </Box>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={handleSubmit}>
+      <DialogActions sx={{ flexDirection: { xs: "column", sm: "row" }, gap: 1, p: 2 }}>
+        <Button onClick={onClose} fullWidth={fullScreen}>
+          Cancel
+        </Button>
+        <Button variant="contained" onClick={handleSubmit} fullWidth={fullScreen}>
           Save
         </Button>
       </DialogActions>

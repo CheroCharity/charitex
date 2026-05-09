@@ -8,7 +8,6 @@ import {
   AppBar,
   Box,
   Chip,
-  CssBaseline,
   Divider,
   Drawer,
   IconButton,
@@ -43,8 +42,11 @@ export default function AppShell({ children }) {
   const isSwitchedContext = Boolean(isSuperAdmin && businessId && ownBusinessId && businessId !== ownBusinessId);
 
   useEffect(() => {
+    let mounted = true;
+
     async function loadBusinessName() {
       if (!businessId) {
+        if (!mounted) return;
         setActiveBusinessName("");
         return;
       }
@@ -56,14 +58,20 @@ export default function AppShell({ children }) {
         .maybeSingle();
 
       if (error) {
+        if (!mounted) return;
         setActiveBusinessName("Selected Business");
         return;
       }
 
+      if (!mounted) return;
       setActiveBusinessName(data?.name || "Selected Business");
     }
 
     loadBusinessName();
+
+    return () => {
+      mounted = false;
+    };
   }, [businessId]);
 
   const navItems = useMemo(
@@ -129,7 +137,6 @@ export default function AppShell({ children }) {
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
-      <CssBaseline />
       <AppBar
         position="fixed"
         sx={{
@@ -138,7 +145,7 @@ export default function AppShell({ children }) {
         }}
       >
         <Toolbar sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
+          <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, flexWrap: { xs: "wrap", sm: "nowrap" }, rowGap: 1 }}>
             <IconButton
               color="default"
               aria-label="open drawer"
@@ -157,8 +164,8 @@ export default function AppShell({ children }) {
                 label={`Business: ${activeBusinessName}`}
                 sx={{
                   ml: 2,
-                  bgcolor: "#fdf0ec",
-                  color: "#E26A4B",
+                  bgcolor: "rgba(226, 106, 75, 0.12)",
+                  color: "rgba(226, 106, 75, 0.9)",
                   border: isSwitchedContext ? "1px solid rgba(53, 35, 52, 0.6)" : "1px solid transparent",
                   fontWeight: 600,
                 }}
@@ -204,6 +211,7 @@ export default function AppShell({ children }) {
           p: { xs: 2, sm: 3, md: 4 },
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           bgcolor: "background.default",
+          overflowX: "hidden",
         }}
       >
         <Toolbar />

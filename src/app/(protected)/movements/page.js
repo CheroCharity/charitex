@@ -60,7 +60,13 @@ export default function MovementsPage() {
         <Typography variant="h4" fontWeight={700}>
           Stock In/Out
         </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => setDialogOpen(true)}
+          fullWidth
+          sx={{ width: { xs: "100%", sm: "auto" }, whiteSpace: "nowrap" }}
+        >
           Add Transaction
         </Button>
       </Stack>

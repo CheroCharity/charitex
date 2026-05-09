@@ -7,9 +7,9 @@ export function getAppTheme(mode = "light") {
     palette: {
       mode,
       primary: {
-        main: "#E26A4B",
-        light: "#EC8468",
-        dark: "#C85D42",
+        main: "rgba(226, 106, 75, 0.82)",
+        light: "rgba(226, 106, 75, 0.68)",
+        dark: "rgba(226, 106, 75, 0.94)",
         contrastText: "#ffffff",
       },
       secondary: {
@@ -40,8 +40,8 @@ export function getAppTheme(mode = "light") {
       },
       divider: mode === "light" ? "#E2E8F0" : "#1E293B",
       action: {
-        hover: mode === "light" ? "rgba(226, 106, 75, 0.06)" : "rgba(148,163,184,0.08)",
-        selected: mode === "light" ? "rgba(226, 106, 75, 0.12)" : "rgba(226, 106, 75, 0.24)",
+        hover: mode === "light" ? "rgba(226, 106, 75, 0.05)" : "rgba(148,163,184,0.08)",
+        selected: mode === "light" ? "rgba(226, 106, 75, 0.1)" : "rgba(226, 106, 75, 0.2)",
       },
     },
     shape: {
@@ -104,7 +104,7 @@ export function getAppTheme(mode = "light") {
         styleOverrides: {
           paper: {
             backgroundImage: "none",
-            backgroundColor: "#E26A4B",
+            backgroundColor: "rgba(226, 106, 75, 0.88)",
             color: "#E2E8F0",
             borderRight: "none",
           },
@@ -149,24 +149,24 @@ export function getAppTheme(mode = "light") {
           },
           contained: {
             backgroundImage: "none",
-            backgroundColor: "#E26A4B",
+            backgroundColor: "rgba(226, 106, 75, 0.86)",
             color: "#ffffff",
             boxShadow: "0 1px 2px rgba(15,23,42,0.08)",
             "&:hover": {
-              backgroundColor: "#C85D42",
-              boxShadow: "0 6px 16px rgba(226,106,75,0.22)",
+              backgroundColor: "rgba(226, 106, 75, 0.96)",
+              boxShadow: "0 6px 16px rgba(226,106,75,0.18)",
             },
           },
           outlined: {
-            color: "#E26A4B",
+            color: "rgba(226, 106, 75, 0.9)",
             borderColor: "#f3cabf",
             "&:hover": {
-              borderColor: "#E26A4B",
-              backgroundColor: "rgba(226, 106, 75, 0.06)",
+              borderColor: "rgba(226, 106, 75, 0.9)",
+              backgroundColor: "rgba(226, 106, 75, 0.08)",
             },
           },
           text: {
-            color: "#E26A4B",
+            color: "rgba(226, 106, 75, 0.9)",
             "&:hover": {
               backgroundColor: "rgba(226, 106, 75, 0.08)",
             },
@@ -236,7 +236,7 @@ export function getAppTheme(mode = "light") {
             color: "#64748B",
             minHeight: 44,
             "&.Mui-selected": {
-              color: "#E26A4B",
+              color: "rgba(226, 106, 75, 0.9)",
             },
           },
         },
@@ -247,7 +247,7 @@ export function getAppTheme(mode = "light") {
             height: 3,
             borderRadius: 3,
             backgroundImage: "none",
-            backgroundColor: "#E26A4B",
+            backgroundColor: "rgba(226, 106, 75, 0.9)",
           },
         },
       },
@@ -306,9 +306,9 @@ export function getAppTheme(mode = "light") {
               borderColor: "#CBD5E1",
             },
             "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-              borderColor: "#E26A4B",
+              borderColor: "rgba(226, 106, 75, 0.9)",
               borderWidth: 1,
-              boxShadow: "0 0 0 4px rgba(226, 106, 75, 0.1)",
+              boxShadow: "0 0 0 4px rgba(226, 106, 75, 0.08)",
             },
           },
           input: {
@@ -322,7 +322,7 @@ export function getAppTheme(mode = "light") {
           root: {
             color: "#64748B",
             "&.Mui-focused": {
-              color: "#E26A4B",
+              color: "rgba(226, 106, 75, 0.9)",
             },
           },
         },

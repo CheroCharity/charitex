@@ -18,6 +18,28 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let mounted = true;
 
+    const fetchBusiness = async (businessId) => {
+      if (!businessId) return null;
+      const { data } = await supabase
+        .from("businesses")
+        .select("id, name, is_frozen")
+        .eq("id", businessId)
+        .maybeSingle();
+      return data || null;
+    };
+
+    const shouldBlockAccess = (profileData, businessData) => {
+      if (profileData && !profileData.is_active) {
+        return "Your account is deactivated. Contact your administrator.";
+      }
+
+      if (profileData && !profileData.is_super_admin && businessData?.is_frozen) {
+        return "Your business account is frozen. Contact system support.";
+      }
+
+      return "";
+    };
+
     async function loadProfile(userId) {
       if (!mounted) return;
       if (!userId) {
@@ -32,28 +54,15 @@ export function AuthProvider({ children }) {
         .eq("id", userId)
         .maybeSingle();
 
+      if (!mounted) return;
       if (error) throw error;
 
-      let business = null;
-      if (profileData?.business_id) {
-        const { data: businessData } = await supabase
-          .from("businesses")
-          .select("id, name, is_frozen")
-          .eq("id", profileData.business_id)
-          .maybeSingle();
-        business = businessData || null;
-      }
+      const business = await fetchBusiness(profileData?.business_id);
+      if (!mounted) return;
 
-      if (profileData && !profileData.is_active) {
-        setAccessBlockedReason("Your account is deactivated. Contact your administrator.");
-        await signOutUser();
-        if (!mounted) return;
-        setProfile(null);
-        return;
-      }
-
-      if (profileData && !profileData.is_super_admin && business?.is_frozen) {
-        setAccessBlockedReason("Your business account is frozen. Contact system support.");
+      const blockReason = shouldBlockAccess(profileData, business);
+      if (blockReason) {
+        setAccessBlockedReason(blockReason);
         await signOutUser();
         if (!mounted) return;
         setProfile(null);

@@ -24,19 +24,23 @@ function toCurrency(value) {
 
 export default function MovementTable({ rows }) {
   return (
-    <TableContainer component={Paper}>
-      <Table>
+    <TableContainer component={Paper} sx={{ overflowX: "auto" }}>
+      <Table sx={{ minWidth: 980 }}>
         <TableHead>
           <TableRow>
             <TableCell>Date</TableCell>
             <TableCell>Product</TableCell>
             <TableCell>Type</TableCell>
-            <TableCell>Payment</TableCell>
+            <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>Payment</TableCell>
             <TableCell align="right">Quantity</TableCell>
-            <TableCell align="right">Buying Price (Snapshot)</TableCell>
-            <TableCell align="right">Selling Price (Snapshot)</TableCell>
+            <TableCell align="right" sx={{ display: { xs: "none", sm: "table-cell" } }}>
+              Buying Price (Snapshot)
+            </TableCell>
+            <TableCell align="right" sx={{ display: { xs: "none", sm: "table-cell" } }}>
+              Selling Price (Snapshot)
+            </TableCell>
             <TableCell align="right">Line Value</TableCell>
-            <TableCell>Note</TableCell>
+            <TableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>Note</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -60,12 +64,16 @@ export default function MovementTable({ rows }) {
                   <TableCell>
                     <Chip label={tx.type} color={tx.type === "IN" ? "success" : "warning"} size="small" />
                   </TableCell>
-                  <TableCell>{tx.payment_method || "-"}</TableCell>
+                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>{tx.payment_method || "-"}</TableCell>
                   <TableCell align="right">{tx.quantity}</TableCell>
-                  <TableCell align="right">{toCurrency(buyingSnapshotPrice)}</TableCell>
-                  <TableCell align="right">{toCurrency(sellingSnapshotPrice)}</TableCell>
+                  <TableCell align="right" sx={{ display: { xs: "none", sm: "table-cell" } }}>
+                    {toCurrency(buyingSnapshotPrice)}
+                  </TableCell>
+                  <TableCell align="right" sx={{ display: { xs: "none", sm: "table-cell" } }}>
+                    {toCurrency(sellingSnapshotPrice)}
+                  </TableCell>
                   <TableCell align="right">{toCurrency(lineValue)}</TableCell>
-                  <TableCell>{tx.note || "-"}</TableCell>
+                  <TableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>{tx.note || "-"}</TableCell>
                 </TableRow>
               );
             })

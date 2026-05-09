@@ -29,17 +29,19 @@ function toCurrency(value) {
 
 export default function ProductTable({ products, onEdit, onDelete, canManage = true }) {
   return (
-    <TableContainer component={Paper}>
-      <Table>
+    <TableContainer component={Paper} sx={{ overflowX: "auto" }}>
+      <Table sx={{ minWidth: 760 }}>
         <TableHead>
           <TableRow>
             <TableCell>Name</TableCell>
-            <TableCell>SKU</TableCell>
-            <TableCell>Category</TableCell>
+            <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>SKU</TableCell>
+            <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>Category</TableCell>
             <TableCell align="right">Unit Price</TableCell>
             <TableCell align="right">Current Stock</TableCell>
-            <TableCell align="right">Stock Value</TableCell>
-            <TableCell>Created</TableCell>
+            <TableCell align="right" sx={{ display: { xs: "none", md: "table-cell" } }}>
+              Stock Value
+            </TableCell>
+            <TableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>Created</TableCell>
             {canManage ? <TableCell align="right">Actions</TableCell> : null}
           </TableRow>
         </TableHead>
@@ -56,8 +58,8 @@ export default function ProductTable({ products, onEdit, onDelete, canManage = t
             products.map((product) => (
               <TableRow key={product.id} hover>
                 <TableCell>{product.name}</TableCell>
-                <TableCell>{product.sku || "-"}</TableCell>
-                <TableCell>{product.category}</TableCell>
+                <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>{product.sku || "-"}</TableCell>
+                <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>{product.category}</TableCell>
                 <TableCell align="right">{toCurrency(product.unit_price)}</TableCell>
                 <TableCell align="right">
                   <Chip
@@ -66,8 +68,12 @@ export default function ProductTable({ products, onEdit, onDelete, canManage = t
                     color={product.currentStock <= 5 ? "warning" : "default"}
                   />
                 </TableCell>
-                <TableCell align="right">{toCurrency(product.stockValue)}</TableCell>
-                <TableCell>{format(new Date(product.created_at), "yyyy-MM-dd")}</TableCell>
+                <TableCell align="right" sx={{ display: { xs: "none", md: "table-cell" } }}>
+                  {toCurrency(product.stockValue)}
+                </TableCell>
+                <TableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>
+                  {format(new Date(product.created_at), "yyyy-MM-dd")}
+                </TableCell>
                 {canManage ? (
                   <TableCell align="right">
                     <Stack direction="row" spacing={1} justifyContent="flex-end">

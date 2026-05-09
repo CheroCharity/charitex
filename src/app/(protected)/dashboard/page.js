@@ -45,12 +45,18 @@ export default function DashboardPage() {
     costOfGoodsSold: 0,
     netReturn: 0,
   });
-  const [period, setPeriod] = useState(() => getCurrentMonthRange());
-  const [draftPeriod, setDraftPeriod] = useState(() => getCurrentMonthRange());
+  const [period, setPeriod] = useState({ from: "", to: "" });
+  const [draftPeriod, setDraftPeriod] = useState({ from: "", to: "" });
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!businessId) return;
+    const initialRange = getCurrentMonthRange();
+    setPeriod(initialRange);
+    setDraftPeriod(initialRange);
+  }, []);
+
+  useEffect(() => {
+    if (!businessId || !period.from || !period.to) return;
 
     async function load() {
       try {
@@ -118,7 +124,7 @@ export default function DashboardPage() {
     }
 
     load();
-  }, [businessId, period]);
+  }, [businessId, period.from, period.to]);
 
   const handlePeriodChange = (field) => (event) => {
     setDraftPeriod((prev) => ({ ...prev, [field]: event.target.value }));
@@ -200,8 +206,8 @@ export default function DashboardPage() {
             title="Total Inventory Value"
             value={toCurrency(summary.totalInventoryValue)}
             icon={<AttachMoneyIcon />}
-            iconColor="#E26A4B"
-            iconBg="rgba(226, 106, 75, 0.16)"
+            iconColor="rgba(226, 106, 75, 0.9)"
+            iconBg="rgba(226, 106, 75, 0.12)"
           />
         </Box>
         <Box>
@@ -245,8 +251,8 @@ export default function DashboardPage() {
             title="M-PESA In (Stock Out)"
             value={toCurrency(paymentSummary.mpesaIn)}
             icon={<PhoneIphoneIcon />}
-            iconColor="#E26A4B"
-            iconBg="rgba(226, 106, 75, 0.16)"
+            iconColor="rgba(226, 106, 75, 0.9)"
+            iconBg="rgba(226, 106, 75, 0.12)"
           />
         </Box>
       </Box>

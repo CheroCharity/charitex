@@ -111,15 +111,23 @@ export default function ProductsPage() {
         <Typography variant="h4" fontWeight={700}>
           Products
         </Typography>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ width: { xs: "100%", sm: "auto" } }}>
           <TextField
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, SKU, category"
             size="small"
+            fullWidth
+            sx={{ width: "100%", maxWidth: { sm: 360 } }}
           />
           {isAdmin ? (
-            <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreate}>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleOpenCreate}
+              fullWidth
+              sx={{ whiteSpace: "nowrap" }}
+            >
               Add Product
             </Button>
           ) : null}

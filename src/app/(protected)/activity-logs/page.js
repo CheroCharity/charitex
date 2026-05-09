@@ -199,8 +199,8 @@ export default function ActivityLogsPage() {
         </Box>
       </Paper>
 
-      <TableContainer component={Paper}>
-        <Table>
+      <TableContainer component={Paper} sx={{ overflowX: "auto" }}>
+        <Table sx={{ minWidth: 980 }}>
           <TableHead>
             <TableRow>
               <TableCell>Time</TableCell>

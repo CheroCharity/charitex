@@ -9,6 +9,8 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  useMediaQuery,
+  useTheme,
   TextField,
 } from "@mui/material";
 
@@ -21,6 +23,8 @@ const emptyForm = {
 
 export default function ProductFormDialog({ open, onClose, onSubmit, initialValues }) {
   const [form, setForm] = useState(emptyForm);
+  const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
 
   useEffect(() => {
     if (initialValues) {
@@ -44,7 +48,7 @@ export default function ProductFormDialog({ open, onClose, onSubmit, initialValu
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={fullScreen}>
       <DialogTitle>{initialValues ? "Edit Product" : "Add Product"}</DialogTitle>
       <DialogContent>
         <Box
@@ -77,9 +81,11 @@ export default function ProductFormDialog({ open, onClose, onSubmit, initialValu
           </Box>
         </Box>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSubmit} variant="contained">
+      <DialogActions sx={{ flexDirection: { xs: "column", sm: "row" }, gap: 1, p: 2 }}>
+        <Button onClick={onClose} fullWidth={fullScreen}>
+          Cancel
+        </Button>
+        <Button onClick={handleSubmit} variant="contained" fullWidth={fullScreen}>
           Save
         </Button>
       </DialogActions>

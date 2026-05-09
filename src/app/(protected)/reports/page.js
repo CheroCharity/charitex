@@ -128,11 +128,21 @@ export default function ReportsPage() {
             />
           </Box>
           <Box>
-            <Stack direction="row" spacing={1} justifyContent={{ xs: "flex-start", sm: "flex-end" }}>
-              <Button variant="outlined" onClick={loadData}>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1}
+              justifyContent={{ xs: "flex-start", sm: "flex-end" }}
+            >
+              <Button variant="outlined" onClick={loadData} fullWidth sx={{ width: { sm: "auto" } }}>
                 Apply Filters
               </Button>
-              <Button variant="contained" startIcon={<DownloadIcon />} onClick={handleExport}>
+              <Button
+                variant="contained"
+                startIcon={<DownloadIcon />}
+                onClick={handleExport}
+                fullWidth
+                sx={{ width: { sm: "auto" } }}
+              >
                 Export CSV
               </Button>
             </Stack>

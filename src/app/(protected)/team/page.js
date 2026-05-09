@@ -218,7 +218,7 @@ export default function TeamPage() {
               ))}
             </TextField>
           ) : null}
-          <Button variant="contained" onClick={handleOnboardUser}>
+          <Button variant="contained" onClick={handleOnboardUser} fullWidth sx={{ width: { sm: "fit-content" } }}>
             Create User
           </Button>
         </Stack>
@@ -227,8 +227,8 @@ export default function TeamPage() {
       {error ? <Alert severity="error">{error}</Alert> : null}
       {success ? <Alert severity="success">{success}</Alert> : null}
 
-      <TableContainer component={Paper}>
-        <Table>
+      <TableContainer component={Paper} sx={{ overflowX: "auto" }}>
+        <Table sx={{ minWidth: 980 }}>
           <TableHead>
             <TableRow>
               <TableCell>Email</TableCell>
@@ -288,24 +288,32 @@ export default function TeamPage() {
                       ) : null}
                     </TableCell>
                     <TableCell align="right">
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        disabled={busyUserId === item.id}
-                        onClick={() => updateRole(item.id)}
-                        sx={{ mr: 1 }}
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={1}
+                        sx={{
+                          justifyContent: "flex-end",
+                          alignItems: { xs: "stretch", sm: "center" },
+                        }}
                       >
-                        Save
-                      </Button>
-                      <Button
-                        variant="contained"
-                        color={item.is_active ? "warning" : "success"}
-                        size="small"
-                        disabled={busyUserId === item.id || disableStatusAction}
-                        onClick={() => toggleUserStatus(item.id, !item.is_active)}
-                      >
-                        {item.is_active ? "Deactivate" : "Activate"}
-                      </Button>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          disabled={busyUserId === item.id}
+                          onClick={() => updateRole(item.id)}
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          variant="contained"
+                          color={item.is_active ? "warning" : "success"}
+                          size="small"
+                          disabled={busyUserId === item.id || disableStatusAction}
+                          onClick={() => toggleUserStatus(item.id, !item.is_active)}
+                        >
+                          {item.is_active ? "Deactivate" : "Activate"}
+                        </Button>
+                      </Stack>
                     </TableCell>
                   </TableRow>
                 );
@@ -316,8 +324,8 @@ export default function TeamPage() {
       </TableContainer>
 
       {isSuperAdmin ? (
-        <TableContainer component={Paper}>
-          <Table>
+        <TableContainer component={Paper} sx={{ overflowX: "auto" }}>
+          <Table sx={{ minWidth: 700 }}>
             <TableHead>
               <TableRow>
                 <TableCell>Business</TableCell>
