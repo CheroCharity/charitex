@@ -1,12 +1,13 @@
 /* eslint-disable react/prop-types */
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   AppBar,
   Box,
+  Chip,
   CssBaseline,
   Divider,
   Drawer,
@@ -24,24 +25,68 @@ import DashboardIcon from "@mui/icons-material/Dashboard";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import AssessmentIcon from "@mui/icons-material/Assessment";
+import GroupIcon from "@mui/icons-material/Group";
+import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
+import HistoryIcon from "@mui/icons-material/History";
+import { supabase } from "@/services/supabaseClient";
 import { useAuth } from "@/contexts/AuthContext";
 
 const drawerWidth = 250;
 
 export default function AppShell({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [activeBusinessName, setActiveBusinessName] = useState("");
   const pathname = usePathname();
   const router = useRouter();
-  const { signOut } = useAuth();
+  const { signOut, isAdmin, isSuperAdmin, businessId, ownBusinessId } = useAuth();
+
+  const isSwitchedContext = Boolean(isSuperAdmin && businessId && ownBusinessId && businessId !== ownBusinessId);
+
+  useEffect(() => {
+    async function loadBusinessName() {
+      if (!businessId) {
+        setActiveBusinessName("");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("businesses")
+        .select("name")
+        .eq("id", businessId)
+        .maybeSingle();
+
+      if (error) {
+        setActiveBusinessName("Selected Business");
+        return;
+      }
+
+      setActiveBusinessName(data?.name || "Selected Business");
+    }
+
+    loadBusinessName();
+  }, [businessId]);
 
   const navItems = useMemo(
-    () => [
-      { label: "Dashboard", href: "/dashboard", icon: <DashboardIcon /> },
-      { label: "Products", href: "/products", icon: <Inventory2Icon /> },
-      { label: "Stock In/Out", href: "/movements", icon: <SwapHorizIcon /> },
-      { label: "Reports", href: "/reports", icon: <AssessmentIcon /> },
-    ],
-    []
+    () => {
+      const base = [
+        { label: "Dashboard", href: "/dashboard", icon: <DashboardIcon /> },
+        { label: "Products", href: "/products", icon: <Inventory2Icon /> },
+        { label: "Stock In/Out", href: "/movements", icon: <SwapHorizIcon /> },
+        { label: "Reports", href: "/reports", icon: <AssessmentIcon /> },
+        { label: "Activity Logs", href: "/activity-logs", icon: <HistoryIcon /> },
+      ];
+
+      if (isAdmin || isSuperAdmin) {
+        base.push({ label: "Team", href: "/team", icon: <GroupIcon /> });
+      }
+
+      if (isSuperAdmin) {
+        base.push({ label: "Super Admin", href: "/super-admin", icon: <AdminPanelSettingsIcon /> });
+      }
+
+      return base;
+    },
+    [isAdmin, isSuperAdmin]
   );
 
   const handleDrawerToggle = () => {
@@ -49,8 +94,12 @@ export default function AppShell({ children }) {
   };
 
   const handleSignOut = async () => {
-    await signOut();
-    router.replace("/login");
+    try {
+      await signOut();
+    } finally {
+      router.replace("/login");
+      router.refresh();
+    }
   };
 
   const drawer = (
@@ -102,6 +151,14 @@ export default function AppShell({ children }) {
             <Typography variant="h6" noWrap>
               Inventory Management
             </Typography>
+            {activeBusinessName ? (
+              <Chip
+                size="small"
+                color={isSwitchedContext ? "warning" : "default"}
+                label={`Business: ${activeBusinessName}`}
+                sx={{ ml: 2 }}
+              />
+            ) : null}
           </Box>
           <Button color="inherit" onClick={handleSignOut}>
             Sign out

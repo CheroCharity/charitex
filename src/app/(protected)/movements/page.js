@@ -9,19 +9,19 @@ import { useAuth } from "@/contexts/AuthContext";
 import { addTransaction, getProductsWithStock, getTransactions } from "@/services/stockService";
 
 export default function MovementsPage() {
-  const { user } = useAuth();
+  const { user, businessId, isAdmin } = useAuth();
   const [products, setProducts] = useState([]);
   const [rows, setRows] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [error, setError] = useState("");
 
   const loadData = async () => {
-    if (!user?.id) return;
+    if (!businessId) return;
     try {
       setError("");
       const [productList, transactionList] = await Promise.all([
-        getProductsWithStock(user.id),
-        getTransactions(user.id),
+        getProductsWithStock(businessId),
+        getTransactions(businessId),
       ]);
       setProducts(productList);
       setRows(transactionList);
@@ -33,15 +33,20 @@ export default function MovementsPage() {
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [businessId]);
 
   const handleCreate = async (form) => {
     try {
+      setError("");
       if (!form.productId || !form.date || !form.type || !form.quantity) {
         throw new Error("Product, type, quantity, and date are required.");
       }
 
-      await addTransaction(user.id, form);
+      if (!isAdmin && form.type !== "OUT") {
+        throw new Error("Staff users can only create STOCK OUT transactions.");
+      }
+
+      await addTransaction({ businessId, userId: user.id, payload: form });
       setDialogOpen(false);
       await loadData();
     } catch (err) {
@@ -60,6 +65,7 @@ export default function MovementsPage() {
         </Button>
       </Stack>
 
+      {isAdmin ? null : <Alert severity="info">You are a staff user. You can only post STOCK OUT transactions.</Alert>}
       {error ? <Alert severity="error">{error}</Alert> : null}
 
       <Paper sx={{ p: 2 }}>
@@ -74,6 +80,7 @@ export default function MovementsPage() {
         onClose={() => setDialogOpen(false)}
         onSubmit={handleCreate}
         products={products}
+        allowedTypes={isAdmin ? ["IN", "OUT"] : ["OUT"]}
       />
     </Stack>
   );

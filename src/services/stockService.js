@@ -1,11 +1,11 @@
 import { supabase } from "@/services/supabaseClient";
 import { computeStockByProduct } from "@/utils/inventory";
 
-export async function getTransactions(userId, filters = {}) {
+export async function getTransactions(businessId, filters = {}) {
   let query = supabase
     .from("stock_transactions")
     .select("*, products(name, sku, category)")
-    .eq("user_id", userId)
+    .eq("business_id", businessId)
     .order("date", { ascending: false });
 
   if (filters.from) query = query.gte("date", filters.from);
@@ -17,11 +17,11 @@ export async function getTransactions(userId, filters = {}) {
   return data || [];
 }
 
-export async function getProductsWithStock(userId) {
+export async function getProductsWithStock(businessId) {
   const [{ data: products, error: productsError }, { data: transactions, error: txError }] =
     await Promise.all([
-      supabase.from("products").select("*").eq("user_id", userId),
-      supabase.from("stock_transactions").select("id, product_id, quantity, type").eq("user_id", userId),
+      supabase.from("products").select("*").eq("business_id", businessId),
+      supabase.from("stock_transactions").select("id, product_id, quantity, type").eq("business_id", businessId),
     ]);
 
   if (productsError) throw productsError;
@@ -31,17 +31,21 @@ export async function getProductsWithStock(userId) {
   return list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 }
 
-export async function addTransaction(userId, payload) {
+export async function addTransaction({ businessId, userId, payload }) {
   const quantity = Number(payload.quantity);
   if (!quantity || quantity <= 0) {
     throw new Error("Quantity must be greater than zero.");
+  }
+
+  if (payload.type === "OUT" && !payload.paymentMethod) {
+    throw new Error("Payment method is required for STOCK OUT.");
   }
 
   const { data: product, error: productError } = await supabase
     .from("products")
     .select("id, unit_price")
     .eq("id", payload.productId)
-    .eq("user_id", userId)
+    .eq("business_id", businessId)
     .single();
 
   if (productError || !product) {
@@ -52,7 +56,7 @@ export async function addTransaction(userId, payload) {
     const { data: txList, error: txError } = await supabase
       .from("stock_transactions")
       .select("quantity, type")
-      .eq("user_id", userId)
+      .eq("business_id", businessId)
       .eq("product_id", payload.productId);
 
     if (txError) throw txError;
@@ -72,8 +76,11 @@ export async function addTransaction(userId, payload) {
     .insert([
       {
         user_id: userId,
+        business_id: businessId,
+        created_by: userId,
         product_id: payload.productId,
         type: payload.type,
+        payment_method: payload.type === "OUT" ? payload.paymentMethod : null,
         quantity,
         date: payload.date,
         note: payload.note || null,

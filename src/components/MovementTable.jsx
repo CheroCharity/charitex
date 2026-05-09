@@ -31,6 +31,7 @@ export default function MovementTable({ rows }) {
             <TableCell>Date</TableCell>
             <TableCell>Product</TableCell>
             <TableCell>Type</TableCell>
+            <TableCell>Payment</TableCell>
             <TableCell align="right">Quantity</TableCell>
             <TableCell align="right">Unit Price (Snapshot)</TableCell>
             <TableCell align="right">Line Value</TableCell>
@@ -40,7 +41,7 @@ export default function MovementTable({ rows }) {
         <TableBody>
           {rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7}>
+              <TableCell colSpan={8}>
                 <Typography color="text.secondary" align="center" py={2}>
                   No transactions found.
                 </Typography>
@@ -57,6 +58,7 @@ export default function MovementTable({ rows }) {
                   <TableCell>
                     <Chip label={tx.type} color={tx.type === "IN" ? "success" : "warning"} size="small" />
                   </TableCell>
+                  <TableCell>{tx.payment_method || "-"}</TableCell>
                   <TableCell align="right">{tx.quantity}</TableCell>
                   <TableCell align="right">{toCurrency(snapshotPrice)}</TableCell>
                   <TableCell align="right">{toCurrency(lineValue)}</TableCell>

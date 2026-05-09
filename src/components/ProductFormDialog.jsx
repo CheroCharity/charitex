@@ -3,12 +3,12 @@
 
 import { useEffect, useState } from "react";
 import {
+  Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Grid,
   TextField,
 } from "@mui/material";
 
@@ -47,17 +47,24 @@ export default function ProductFormDialog({ open, onClose, onSubmit, initialValu
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>{initialValues ? "Edit Product" : "Add Product"}</DialogTitle>
       <DialogContent>
-        <Grid container spacing={2} sx={{ mt: 0.5 }}>
-          <Grid size={{ xs: 12 }}>
+        <Box
+          sx={{
+            mt: 0.5,
+            display: "grid",
+            gap: 2,
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" },
+          }}
+        >
+          <Box sx={{ gridColumn: "1 / -1" }}>
             <TextField label="Name" value={form.name} onChange={handleChange("name")} fullWidth required />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6 }}>
+          </Box>
+          <Box>
             <TextField label="SKU (optional)" value={form.sku} onChange={handleChange("sku")} fullWidth />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6 }}>
+          </Box>
+          <Box>
             <TextField label="Category" value={form.category} onChange={handleChange("category")} fullWidth required />
-          </Grid>
-          <Grid size={{ xs: 12 }}>
+          </Box>
+          <Box sx={{ gridColumn: "1 / -1" }}>
             <TextField
               label="Unit Price"
               type="number"
@@ -67,8 +74,8 @@ export default function ProductFormDialog({ open, onClose, onSubmit, initialValu
               fullWidth
               required
             />
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>

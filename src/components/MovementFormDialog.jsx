@@ -3,24 +3,25 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   FormControl,
-  Grid,
   InputLabel,
   MenuItem,
   Select,
   TextField,
 } from "@mui/material";
 
-export default function MovementFormDialog({ open, onClose, onSubmit, products }) {
+export default function MovementFormDialog({ open, onClose, onSubmit, products, allowedTypes = ["IN", "OUT"] }) {
   const [form, setForm] = useState({
     productId: "",
     quantity: "",
-    type: "IN",
+    type: allowedTypes[0] || "OUT",
+    paymentMethod: "",
     date: "",
     note: "",
   });
@@ -29,9 +30,20 @@ export default function MovementFormDialog({ open, onClose, onSubmit, products }
 
   useEffect(() => {
     if (open) {
-      setForm((prev) => ({ ...prev, date: prev.date || today }));
+      setForm((prev) => {
+        const nextType = allowedTypes.includes(prev.type) ? prev.type : (allowedTypes[0] || "OUT");
+        return {
+          ...prev,
+          date: prev.date || today,
+          type: nextType,
+          paymentMethod:
+            nextType === "OUT"
+              ? (prev.paymentMethod || "CASH")
+              : "",
+        };
+      });
     }
-  }, [open, today]);
+  }, [open, today, allowedTypes]);
 
   const handleChange = (field) => (event) => {
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
@@ -45,8 +57,15 @@ export default function MovementFormDialog({ open, onClose, onSubmit, products }
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>Add Stock Transaction</DialogTitle>
       <DialogContent>
-        <Grid container spacing={2} sx={{ mt: 0.5 }}>
-          <Grid size={{ xs: 12 }}>
+        <Box
+          sx={{
+            mt: 0.5,
+            display: "grid",
+            gap: 2,
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" },
+          }}
+        >
+          <Box sx={{ gridColumn: "1 / -1" }}>
             <FormControl fullWidth>
               <InputLabel id="product-select">Product</InputLabel>
               <Select
@@ -62,17 +81,33 @@ export default function MovementFormDialog({ open, onClose, onSubmit, products }
                 ))}
               </Select>
             </FormControl>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6 }}>
+          </Box>
+          <Box>
             <FormControl fullWidth>
               <InputLabel id="type-select">Type</InputLabel>
               <Select labelId="type-select" value={form.type} label="Type" onChange={handleChange("type")}>
-                <MenuItem value="IN">STOCK IN</MenuItem>
-                <MenuItem value="OUT">STOCK OUT</MenuItem>
+                {allowedTypes.includes("IN") ? <MenuItem value="IN">STOCK IN</MenuItem> : null}
+                {allowedTypes.includes("OUT") ? <MenuItem value="OUT">STOCK OUT</MenuItem> : null}
               </Select>
             </FormControl>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6 }}>
+          </Box>
+          {form.type === "OUT" ? (
+            <Box>
+              <FormControl fullWidth>
+                <InputLabel id="payment-method-select">Payment Method</InputLabel>
+                <Select
+                  labelId="payment-method-select"
+                  value={form.paymentMethod}
+                  label="Payment Method"
+                  onChange={handleChange("paymentMethod")}
+                >
+                  <MenuItem value="CASH">CASH</MenuItem>
+                  <MenuItem value="MPESA">M-PESA</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+          ) : null}
+          <Box>
             <TextField
               label="Quantity"
               type="number"
@@ -81,18 +116,18 @@ export default function MovementFormDialog({ open, onClose, onSubmit, products }
               onChange={handleChange("quantity")}
               fullWidth
             />
-          </Grid>
-          <Grid size={{ xs: 12 }}>
+          </Box>
+          <Box sx={{ gridColumn: "1 / -1" }}>
             <TextField
               label="Date"
               type="date"
               value={form.date}
               onChange={handleChange("date")}
               fullWidth
-              InputLabelProps={{ shrink: true }}
+              slotProps={{ inputLabel: { shrink: true } }}
             />
-          </Grid>
-          <Grid size={{ xs: 12 }}>
+          </Box>
+          <Box sx={{ gridColumn: "1 / -1" }}>
             <TextField
               label="Note (optional)"
               value={form.note}
@@ -101,8 +136,8 @@ export default function MovementFormDialog({ open, onClose, onSubmit, products }
               multiline
               minRows={2}
             />
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>

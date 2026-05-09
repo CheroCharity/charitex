@@ -11,9 +11,17 @@ Charitex is a full-stack inventory tracking MVP for small and medium businesses.
 ## Features
 
 - Email/password authentication
+- Multi-tenant business model (users are scoped to one business)
+- Role-based access control (admin, staff)
+- Super admin capabilities for cross-business user and business control
+- Admin/super-admin user onboarding (no self-signup)
+- User activation/deactivation controls
+- Business freeze/unfreeze controls
 - Per-user data isolation with Supabase Row-Level Security
 - Product CRUD
 - Stock in/out transactions
+- Activity logs for product and stock transaction changes
+- Payment method capture for stock out (`CASH`, `M-PESA`)
 - Derived stock logic from transaction history only
 - Dashboard metrics:
   - total inventory value
@@ -43,6 +51,7 @@ Charitex is a full-stack inventory tracking MVP for small and medium businesses.
 3. Set values in `.env.local`:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY` (required for admin onboarding API route)
 
 4. In Supabase SQL editor, run:
    - `supabase/schema.sql`
@@ -56,9 +65,12 @@ Charitex is a full-stack inventory tracking MVP for small and medium businesses.
   - `sum(IN) - sum(OUT)`
 - Stock can never go negative (validated before OUT transactions)
 - Final stock is never manually stored
+- Staff users can only create `OUT` transactions
+- Admin users can manage products and all transaction types
 - Historical accuracy:
   - each transaction stores `unit_price_snapshot`
   - reports use snapshot value
+- Dashboard shows `Cash In` and `M-PESA In` totals for selected period (default: current month)
 
 ## Pages
 
@@ -67,8 +79,12 @@ Charitex is a full-stack inventory tracking MVP for small and medium businesses.
 - `/products`
 - `/movements`
 - `/reports`
+- `/activity-logs`
+- `/team` (business admin)
+- `/team` (business admin + super admin)
+- `/super-admin` (super admin)
 
 ## Notes
 
-- Currency display currently uses USD; adjust in formatter if needed.
+- Currency display uses Kenyan Shilling (KES).
 - Deleting a product removes related transactions via foreign key cascade.

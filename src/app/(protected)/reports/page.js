@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Box,
   Button,
-  Grid,
   Paper,
   Stack,
   TextField,
@@ -16,7 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getTransactions } from "@/services/stockService";
 
 function toCsv(rows) {
-  const headers = ["date", "product", "type", "quantity", "unit_price_snapshot", "line_value", "note"];
+  const headers = ["date", "product", "type", "payment_method", "quantity", "unit_price_snapshot", "line_value", "note"];
   const content = rows.map((tx) => {
     const price = Number(tx.unit_price_snapshot || 0);
     const line = Number(tx.quantity || 0) * price;
@@ -24,6 +24,7 @@ function toCsv(rows) {
       tx.date,
       tx.products?.name || "",
       tx.type,
+      tx.payment_method || "",
       tx.quantity,
       price,
       line,
@@ -35,7 +36,7 @@ function toCsv(rows) {
 }
 
 export default function ReportsPage() {
-  const { user } = useAuth();
+  const { businessId } = useAuth();
   const [rows, setRows] = useState([]);
   const [error, setError] = useState("");
   const [filters, setFilters] = useState({ from: "", to: "" });
@@ -45,10 +46,10 @@ export default function ReportsPage() {
   }, [rows]);
 
   const loadData = async () => {
-    if (!user?.id) return;
+    if (!businessId) return;
     try {
       setError("");
-      const data = await getTransactions(user.id, filters);
+      const data = await getTransactions(businessId, filters);
       setRows(data);
     } catch (err) {
       setError(err.message || "Failed to load reports");
@@ -58,7 +59,7 @@ export default function ReportsPage() {
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [businessId]);
 
   const handleFilterChange = (field) => (event) => {
     setFilters((prev) => ({ ...prev, [field]: event.target.value }));
@@ -86,28 +87,35 @@ export default function ReportsPage() {
       {error ? <Alert severity="error">{error}</Alert> : null}
 
       <Paper sx={{ p: 2 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid size={{ xs: 12, sm: 4 }}>
+        <Box
+          sx={{
+            display: "grid",
+            gap: 2,
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" },
+            alignItems: "center",
+          }}
+        >
+          <Box>
             <TextField
               label="From"
               type="date"
-              InputLabelProps={{ shrink: true }}
+              slotProps={{ inputLabel: { shrink: true } }}
               value={filters.from}
               onChange={handleFilterChange("from")}
               fullWidth
             />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 4 }}>
+          </Box>
+          <Box>
             <TextField
               label="To"
               type="date"
-              InputLabelProps={{ shrink: true }}
+              slotProps={{ inputLabel: { shrink: true } }}
               value={filters.to}
               onChange={handleFilterChange("to")}
               fullWidth
             />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 4 }}>
+          </Box>
+          <Box>
             <Stack direction="row" spacing={1} justifyContent={{ xs: "flex-start", sm: "flex-end" }}>
               <Button variant="outlined" onClick={loadData}>
                 Apply Filters
@@ -116,8 +124,8 @@ export default function ReportsPage() {
                 Export CSV
               </Button>
             </Stack>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </Paper>
 
       <MovementTable rows={sortedRows} />

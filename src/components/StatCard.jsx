@@ -1,14 +1,14 @@
 /* eslint-disable react/prop-types */
 "use client";
 
-import { Card, CardContent, Stack, Typography } from "@mui/material";
+import { Box, Card, CardContent, Typography } from "@mui/material";
 
 export default function StatCard({ title, value, helper, icon }) {
   return (
     <Card>
       <CardContent>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-          <Stack>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 2 }}>
+          <Box>
             <Typography variant="body2" color="text.secondary">
               {title}
             </Typography>
@@ -20,9 +20,9 @@ export default function StatCard({ title, value, helper, icon }) {
                 {helper}
               </Typography>
             ) : null}
-          </Stack>
+          </Box>
           {icon}
-        </Stack>
+        </Box>
       </CardContent>
     </Card>
   );

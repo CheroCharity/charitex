@@ -11,8 +11,6 @@ import {
   CircularProgress,
   Container,
   Stack,
-  Tab,
-  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
@@ -22,19 +20,16 @@ export default function LoginClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextUrl = useMemo(() => searchParams.get("next") || "/dashboard", [searchParams]);
-  const { signIn, signUp, isAuthenticated, loading: authLoading } = useAuth();
+  const { signIn, isAuthenticated, loading: authLoading, accessBlockedReason } = useAuth();
 
   const [mounted, setMounted] = useState(false);
-  const [mode, setMode] = useState("signin");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [form, setForm] = useState({ email: "", password: "" });
 
   const getSubmitLabel = () => {
     if (loading) return "Please wait...";
-    if (mode === "signin") return "Sign In";
-    return "Create Account";
+    return "Sign In";
   };
 
   useEffect(() => {
@@ -63,17 +58,10 @@ export default function LoginClient() {
     event.preventDefault();
     setLoading(true);
     setError("");
-    setSuccess("");
 
     try {
-      if (mode === "signin") {
-        await signIn(form.email, form.password);
-        router.replace(nextUrl);
-      } else {
-        await signUp(form.email, form.password);
-        setSuccess("Account created. You can now sign in.");
-        setMode("signin");
-      }
+      await signIn(form.email, form.password);
+      router.replace(nextUrl);
     } catch (err) {
       setError(err.message || "Authentication failed");
     } finally {
@@ -93,13 +81,8 @@ export default function LoginClient() {
               <Typography color="text.secondary">Inventory tracking for your business</Typography>
             </Box>
 
-            <Tabs value={mode} onChange={(_e, value) => setMode(value)}>
-              <Tab label="Sign In" value="signin" />
-              <Tab label="Sign Up" value="signup" />
-            </Tabs>
-
+            {accessBlockedReason ? <Alert severity="warning">{accessBlockedReason}</Alert> : null}
             {error ? <Alert severity="error">{error}</Alert> : null}
-            {success ? <Alert severity="success">{success}</Alert> : null}
 
             <Box component="form" onSubmit={handleSubmit}>
               <Stack spacing={2}>
@@ -122,6 +105,9 @@ export default function LoginClient() {
                 <Button type="submit" variant="contained" size="large" disabled={loading}>
                   {getSubmitLabel()}
                 </Button>
+                <Typography variant="caption" color="text.secondary">
+                  Accounts are created by a business admin or super admin.
+                </Typography>
               </Stack>
             </Box>
           </Stack>

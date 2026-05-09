@@ -27,7 +27,7 @@ function toCurrency(value) {
   }).format(Number(value || 0));
 }
 
-export default function ProductTable({ products, onEdit, onDelete }) {
+export default function ProductTable({ products, onEdit, onDelete, canManage = true }) {
   return (
     <TableContainer component={Paper}>
       <Table>
@@ -40,13 +40,13 @@ export default function ProductTable({ products, onEdit, onDelete }) {
             <TableCell align="right">Current Stock</TableCell>
             <TableCell align="right">Stock Value</TableCell>
             <TableCell>Created</TableCell>
-            <TableCell align="right">Actions</TableCell>
+            {canManage ? <TableCell align="right">Actions</TableCell> : null}
           </TableRow>
         </TableHead>
         <TableBody>
           {products.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8}>
+              <TableCell colSpan={canManage ? 8 : 7}>
                 <Typography color="text.secondary" align="center" py={2}>
                   No products yet.
                 </Typography>
@@ -68,20 +68,22 @@ export default function ProductTable({ products, onEdit, onDelete }) {
                 </TableCell>
                 <TableCell align="right">{toCurrency(product.stockValue)}</TableCell>
                 <TableCell>{format(new Date(product.created_at), "yyyy-MM-dd")}</TableCell>
-                <TableCell align="right">
-                  <Stack direction="row" spacing={1} justifyContent="flex-end">
-                    <Tooltip title="Edit">
-                      <IconButton size="small" onClick={() => onEdit(product)}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Delete">
-                      <IconButton size="small" color="error" onClick={() => onDelete(product)}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Stack>
-                </TableCell>
+                {canManage ? (
+                  <TableCell align="right">
+                    <Stack direction="row" spacing={1} justifyContent="flex-end">
+                      <Tooltip title="Edit">
+                        <IconButton size="small" onClick={() => onEdit(product)}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete">
+                        <IconButton size="small" color="error" onClick={() => onDelete(product)}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  </TableCell>
+                ) : null}
               </TableRow>
             ))
           )}

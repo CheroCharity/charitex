@@ -20,7 +20,7 @@ import { createProduct, deleteProduct, updateProduct } from "@/services/productS
 import { getProductsWithStock } from "@/services/stockService";
 
 export default function ProductsPage() {
-  const { user } = useAuth();
+  const { user, businessId, isAdmin } = useAuth();
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
@@ -40,10 +40,10 @@ export default function ProductsPage() {
   }, [products, search]);
 
   const loadProducts = async () => {
-    if (!user?.id) return;
+    if (!businessId) return;
     try {
       setError("");
-      const list = await getProductsWithStock(user.id);
+      const list = await getProductsWithStock(businessId);
       setProducts(list);
     } catch (err) {
       setError(err.message || "Failed to load products");
@@ -53,14 +53,16 @@ export default function ProductsPage() {
   useEffect(() => {
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [businessId]);
 
   const handleOpenCreate = () => {
+    if (!isAdmin) return;
     setEditing(null);
     setDialogOpen(true);
   };
 
   const handleEdit = (product) => {
+    if (!isAdmin) return;
     setEditing(product);
     setDialogOpen(true);
   };
@@ -68,6 +70,9 @@ export default function ProductsPage() {
   const handleSubmit = async (form) => {
     try {
       setError("");
+      if (!isAdmin) {
+        throw new Error("Only business admins can manage products.");
+      }
       if (!form.name || !form.category || !form.unitPrice) {
         throw new Error("Name, category, and unit price are required.");
       }
@@ -75,7 +80,7 @@ export default function ProductsPage() {
       if (editing) {
         await updateProduct(editing.id, form);
       } else {
-        await createProduct(user.id, form);
+        await createProduct({ businessId, userId: user.id, payload: form });
       }
 
       setDialogOpen(false);
@@ -89,6 +94,9 @@ export default function ProductsPage() {
   const handleDelete = async () => {
     try {
       setError("");
+      if (!isAdmin) {
+        throw new Error("Only business admins can delete products.");
+      }
       await deleteProduct(deleting.id);
       setDeleting(null);
       await loadProducts();
@@ -110,35 +118,42 @@ export default function ProductsPage() {
             placeholder="Search by name, SKU, category"
             size="small"
           />
-          <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreate}>
-            Add Product
-          </Button>
+          {isAdmin ? (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreate}>
+              Add Product
+            </Button>
+          ) : null}
         </Stack>
       </Stack>
 
+      {isAdmin ? null : <Alert severity="info">You are a staff user. Product management is admin-only.</Alert>}
       {error ? <Alert severity="error">{error}</Alert> : null}
 
-      <ProductTable products={filtered} onEdit={handleEdit} onDelete={setDeleting} />
+      <ProductTable products={filtered} onEdit={handleEdit} onDelete={setDeleting} canManage={isAdmin} />
 
-      <ProductFormDialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        onSubmit={handleSubmit}
-        initialValues={editing}
-      />
+      {isAdmin ? (
+        <ProductFormDialog
+          open={dialogOpen}
+          onClose={() => setDialogOpen(false)}
+          onSubmit={handleSubmit}
+          initialValues={editing}
+        />
+      ) : null}
 
-      <Dialog open={!!deleting} onClose={() => setDeleting(null)}>
-        <DialogTitle>Delete product</DialogTitle>
-        <DialogContent>
-          Are you sure you want to delete <strong>{deleting?.name}</strong>? This also removes linked stock transactions.
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleting(null)}>Cancel</Button>
-          <Button color="error" variant="contained" onClick={handleDelete}>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {isAdmin ? (
+        <Dialog open={!!deleting} onClose={() => setDeleting(null)}>
+          <DialogTitle>Delete product</DialogTitle>
+          <DialogContent>
+            Are you sure you want to delete <strong>{deleting?.name}</strong>? This also removes linked stock transactions.
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleting(null)}>Cancel</Button>
+            <Button color="error" variant="contained" onClick={handleDelete}>
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+      ) : null}
     </Stack>
   );
 }
