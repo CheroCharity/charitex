@@ -31,44 +31,90 @@ export async function getProductsWithStock(businessId) {
   return list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 }
 
-export async function addTransaction({ businessId, userId, payload }) {
-  const quantity = Number(payload.quantity);
+function validateQuantity(quantity) {
   if (!quantity || quantity <= 0) {
     throw new Error("Quantity must be greater than zero.");
   }
+}
 
+function validateTypeSpecificInputs(payload, buyingPrice, sellingPriceInput) {
   if (payload.type === "OUT" && !payload.paymentMethod) {
     throw new Error("Payment method is required for STOCK OUT.");
   }
 
-  const { data: product, error: productError } = await supabase
+  if (payload.type !== "IN") return;
+
+  if (!buyingPrice || buyingPrice <= 0) {
+    throw new Error("Buying price is required for STOCK IN.");
+  }
+
+  if (!sellingPriceInput || sellingPriceInput <= 0) {
+    throw new Error("Selling price is required for STOCK IN.");
+  }
+}
+
+async function loadProductForTransaction(productId, businessId) {
+  const { data: product, error } = await supabase
     .from("products")
     .select("id, unit_price")
-    .eq("id", payload.productId)
+    .eq("id", productId)
     .eq("business_id", businessId)
     .single();
 
-  if (productError || !product) {
+  if (error || !product) {
     throw new Error("Product not found.");
   }
 
+  return product;
+}
+
+async function ensureStockNotNegative(productId, businessId, quantity) {
+  const { data: txList, error: txError } = await supabase
+    .from("stock_transactions")
+    .select("quantity, type")
+    .eq("business_id", businessId)
+    .eq("product_id", productId);
+
+  if (txError) throw txError;
+
+  const currentStock = (txList || []).reduce((acc, tx) => {
+    if (tx.type === "IN") return acc + Number(tx.quantity || 0);
+    return acc - Number(tx.quantity || 0);
+  }, 0);
+
+  if (currentStock - quantity < 0) {
+    throw new Error("Stock cannot go negative.");
+  }
+}
+
+async function updateProductSellingPrice(productId, businessId, sellingPrice) {
+  const { error } = await supabase
+    .from("products")
+    .update({ unit_price: sellingPrice })
+    .eq("id", productId)
+    .eq("business_id", businessId);
+
+  if (error) throw error;
+}
+
+export async function addTransaction({ businessId, userId, payload }) {
+  const quantity = Number(payload.quantity);
+  validateQuantity(quantity);
+
+  const buyingPrice = Number(payload.buyingPrice || 0);
+  const sellingPriceInput = Number(payload.sellingPrice || 0);
+  validateTypeSpecificInputs(payload, buyingPrice, sellingPriceInput);
+
+  const product = await loadProductForTransaction(payload.productId, businessId);
+
+  const sellingPrice = payload.type === "IN" ? sellingPriceInput : Number(product.unit_price || 0);
+
   if (payload.type === "OUT") {
-    const { data: txList, error: txError } = await supabase
-      .from("stock_transactions")
-      .select("quantity, type")
-      .eq("business_id", businessId)
-      .eq("product_id", payload.productId);
+    await ensureStockNotNegative(payload.productId, businessId, quantity);
+  }
 
-    if (txError) throw txError;
-
-    const currentStock = (txList || []).reduce((acc, tx) => {
-      if (tx.type === "IN") return acc + Number(tx.quantity || 0);
-      return acc - Number(tx.quantity || 0);
-    }, 0);
-
-    if (currentStock - quantity < 0) {
-      throw new Error("Stock cannot go negative.");
-    }
+  if (payload.type === "IN") {
+    await updateProductSellingPrice(payload.productId, businessId, sellingPrice);
   }
 
   const { data, error } = await supabase
@@ -84,7 +130,9 @@ export async function addTransaction({ businessId, userId, payload }) {
         quantity,
         date: payload.date,
         note: payload.note || null,
-        unit_price_snapshot: Number(product.unit_price || 0),
+        buying_price_snapshot: payload.type === "IN" ? buyingPrice : 0,
+        selling_price_snapshot: sellingPrice,
+        unit_price_snapshot: sellingPrice,
       },
     ])
     .select()

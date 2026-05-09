@@ -36,10 +36,15 @@ function getCurrentMonthRange() {
 }
 
 export default function DashboardPage() {
-  const { businessId } = useAuth();
+  const { businessId, isAdmin, isSuperAdmin } = useAuth();
   const [rows, setRows] = useState([]);
   const [summary, setSummary] = useState({ totalProducts: 0, totalInventoryValue: 0, lowStockCount: 0 });
   const [paymentSummary, setPaymentSummary] = useState({ cashIn: 0, mpesaIn: 0 });
+  const [netReturnSummary, setNetReturnSummary] = useState({
+    salesRevenue: 0,
+    costOfGoodsSold: 0,
+    netReturn: 0,
+  });
   const [period, setPeriod] = useState(() => getCurrentMonthRange());
   const [draftPeriod, setDraftPeriod] = useState(() => getCurrentMonthRange());
   const [error, setError] = useState("");
@@ -58,7 +63,8 @@ export default function DashboardPage() {
         const payments = transactions.reduce(
           (acc, tx) => {
             if (tx.type !== "OUT") return acc;
-            const amount = Number(tx.quantity || 0) * Number(tx.unit_price_snapshot || 0);
+            const sellingPrice = Number(tx.selling_price_snapshot || tx.unit_price_snapshot || 0);
+            const amount = Number(tx.quantity || 0) * sellingPrice;
             if (tx.payment_method === "MPESA") {
               acc.mpesaIn += amount;
             } else if (tx.payment_method === "CASH") {
@@ -68,7 +74,43 @@ export default function DashboardPage() {
           },
           { cashIn: 0, mpesaIn: 0 }
         );
+
+        const buyingByProduct = transactions.reduce((acc, tx) => {
+          if (tx.type !== "IN") return acc;
+          const productId = tx.product_id;
+          if (!productId) return acc;
+          if (!acc[productId]) {
+            acc[productId] = { qty: 0, total: 0 };
+          }
+          const qty = Number(tx.quantity || 0);
+          const unit = Number(tx.buying_price_snapshot || tx.unit_price_snapshot || 0);
+          acc[productId].qty += qty;
+          acc[productId].total += qty * unit;
+          return acc;
+        }, {});
+
+        const netReturn = transactions.reduce(
+          (acc, tx) => {
+            if (tx.type !== "OUT") return acc;
+
+            const qty = Number(tx.quantity || 0);
+            const sellingPrice = Number(tx.selling_price_snapshot || tx.unit_price_snapshot || 0);
+            const revenue = qty * sellingPrice;
+
+            const costData = buyingByProduct[tx.product_id];
+            const buyingPrice = costData?.qty ? costData.total / costData.qty : 0;
+            const cost = qty * buyingPrice;
+
+            acc.salesRevenue += revenue;
+            acc.costOfGoodsSold += cost;
+            acc.netReturn += revenue - cost;
+            return acc;
+          },
+          { salesRevenue: 0, costOfGoodsSold: 0, netReturn: 0 }
+        );
+
         setPaymentSummary(payments);
+        setNetReturnSummary(netReturn);
         setRows(transactions.slice(0, 8));
       } catch (err) {
         setError(err.message || "Failed to load dashboard data");
@@ -87,7 +129,15 @@ export default function DashboardPage() {
   };
 
   return (
-    <Stack spacing={3}>
+    <Stack
+      spacing={3}
+      sx={{
+        p: { xs: 1.5, md: 2 },
+        borderRadius: 3,
+        backgroundImage: "none",
+        backgroundColor: "#ffffff",
+      }}
+    >
       <Typography variant="h4" fontWeight={700}>
         Dashboard
       </Typography>
@@ -149,34 +199,54 @@ export default function DashboardPage() {
           <StatCard
             title="Total Inventory Value"
             value={toCurrency(summary.totalInventoryValue)}
-            icon={<AttachMoneyIcon color="primary" />}
+            icon={<AttachMoneyIcon />}
+            iconColor="#E26A4B"
+            iconBg="rgba(226, 106, 75, 0.16)"
           />
         </Box>
         <Box>
           <StatCard
             title="Total Products"
             value={summary.totalProducts}
-            icon={<InventoryIcon color="primary" />}
+            icon={<InventoryIcon />}
+            iconColor="rgba(53, 35, 52, 0.78)"
+            iconBg="rgba(53, 35, 52, 0.1)"
           />
         </Box>
         <Box>
-          <StatCard title="Low Stock Items" value={summary.lowStockCount} icon={<WarningIcon color="warning" />} />
+          <StatCard
+            title="Low Stock Items"
+            value={summary.lowStockCount}
+            icon={<WarningIcon />}
+            iconColor="#F59E0B"
+            iconBg="rgba(245, 158, 11, 0.16)"
+          />
         </Box>
         <Box>
-          <StatCard title="Recent Movements" value={rows.length} icon={<SwapHorizIcon color="secondary" />} />
+          <StatCard
+            title="Recent Movements"
+            value={rows.length}
+            icon={<SwapHorizIcon />}
+            iconColor="rgba(53, 35, 52, 0.78)"
+            iconBg="rgba(53, 35, 52, 0.1)"
+          />
         </Box>
         <Box>
           <StatCard
             title="Cash In (Stock Out)"
             value={toCurrency(paymentSummary.cashIn)}
-            icon={<AccountBalanceWalletIcon color="success" />}
+            icon={<AccountBalanceWalletIcon />}
+            iconColor="rgba(53, 35, 52, 0.78)"
+            iconBg="rgba(53, 35, 52, 0.1)"
           />
         </Box>
         <Box>
           <StatCard
             title="M-PESA In (Stock Out)"
             value={toCurrency(paymentSummary.mpesaIn)}
-            icon={<PhoneIphoneIcon color="primary" />}
+            icon={<PhoneIphoneIcon />}
+            iconColor="#E26A4B"
+            iconBg="rgba(226, 106, 75, 0.16)"
           />
         </Box>
       </Box>
@@ -187,6 +257,33 @@ export default function DashboardPage() {
         </Typography>
         <MovementTable rows={rows} />
       </Paper>
+
+      {isAdmin && !isSuperAdmin ? (
+        <Paper sx={{ p: 2 }}>
+          <Stack spacing={2}>
+            <Typography variant="h6">Business Net Return (Selected Period)</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Net Return = Sold Qty × Selling Price − Sold Qty × Buying Price
+            </Typography>
+
+            <Box
+              sx={{
+                display: "grid",
+                gap: 2,
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "repeat(2, minmax(0, 1fr))",
+                  lg: "repeat(3, minmax(0, 1fr))",
+                },
+              }}
+            >
+              <StatCard title="Sales Revenue" value={toCurrency(netReturnSummary.salesRevenue)} />
+              <StatCard title="Cost of Goods Sold" value={toCurrency(netReturnSummary.costOfGoodsSold)} />
+              <StatCard title="Net Return" value={toCurrency(netReturnSummary.netReturn)} />
+            </Box>
+          </Stack>
+        </Paper>
+      ) : null}
     </Stack>
   );
 }

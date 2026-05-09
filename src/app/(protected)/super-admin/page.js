@@ -6,6 +6,7 @@ import {
   Alert,
   Button,
   Chip,
+  CircularProgress,
   Paper,
   Stack,
   Table,
@@ -18,7 +19,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useAuth } from "@/contexts/AuthContext";
-import { getBusinessesOverview, onboardBusiness } from "@/services/userService";
+import { getBusinessesOverview, onboardBusinessWithUsers } from "@/services/userService";
 
 export default function SuperAdminPage() {
   const router = useRouter();
@@ -26,7 +27,13 @@ export default function SuperAdminPage() {
   const [rows, setRows] = useState([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [form, setForm] = useState({ businessName: "", adminEmail: "", staffEmails: "" });
+  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState({
+    businessName: "",
+    adminEmail: "",
+    adminPassword: "",
+    staffEntries: "",
+  });
 
   const loadBusinesses = async () => {
     try {
@@ -46,28 +53,36 @@ export default function SuperAdminPage() {
 
   const handleOnboard = async () => {
     try {
+      setSubmitting(true);
       setError("");
       setSuccess("");
-      if (!form.businessName || !form.adminEmail) {
-        throw new Error("Business name and admin email are required.");
+      if (!form.businessName || !form.adminEmail || !form.adminPassword) {
+        throw new Error("Business name, admin email, and admin password are required.");
       }
 
-      const staffEmails = form.staffEmails
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean);
+      const staff = form.staffEntries
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+          const [email, password] = line.split(":").map((part) => part?.trim() || "");
+          return { email: String(email).toLowerCase(), password };
+        });
 
-      await onboardBusiness({
+      await onboardBusinessWithUsers({
         businessName: form.businessName,
         adminEmail: form.adminEmail,
-        staffEmails,
+        adminPassword: form.adminPassword,
+        staff,
       });
 
-      setSuccess("Business onboarded successfully with admin/staff assignments.");
-      setForm({ businessName: "", adminEmail: "", staffEmails: "" });
+      setSuccess("Business onboarded successfully.");
+      setForm({ businessName: "", adminEmail: "", adminPassword: "", staffEntries: "" });
       await loadBusinesses();
     } catch (err) {
       setError(err.message || "Failed to onboard business.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -89,6 +104,8 @@ export default function SuperAdminPage() {
       <Paper sx={{ p: 2 }}>
         <Stack spacing={2}>
           <Typography variant="h6">Onboard New Business</Typography>
+          {error ? <Alert severity="error">{error}</Alert> : null}
+          {success ? <Alert severity="success">{success}</Alert> : null}
           <TextField
             label="Business Name"
             value={form.businessName}
@@ -103,23 +120,35 @@ export default function SuperAdminPage() {
             fullWidth
           />
           <TextField
-            label="Staff Emails (comma-separated)"
-            value={form.staffEmails}
-            onChange={(e) => setForm((prev) => ({ ...prev, staffEmails: e.target.value }))}
-            placeholder="staff1@company.com, staff2@company.com"
+            label="Admin Temporary Password"
+            type="password"
+            value={form.adminPassword}
+            onChange={(e) => setForm((prev) => ({ ...prev, adminPassword: e.target.value }))}
+            helperText="At least 8 characters"
             fullWidth
           />
-          <Button variant="contained" onClick={handleOnboard}>
-            Onboard Business
+          <TextField
+            label="Staff Accounts (optional)"
+            value={form.staffEntries}
+            onChange={(e) => setForm((prev) => ({ ...prev, staffEntries: e.target.value }))}
+            placeholder={"one per line: email:password\nexample@company.com:TempPass123"}
+            multiline
+            minRows={4}
+            fullWidth
+          />
+          <Button
+            variant="contained"
+            onClick={handleOnboard}
+            disabled={submitting}
+            startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : null}
+          >
+            {submitting ? "Onboarding..." : "Onboard Business"}
           </Button>
           <Typography variant="body2" color="text.secondary">
-            Note: Admin and staff users must already have accounts (signed up).
+            Staff format: one user per line as <strong>email:password</strong>.
           </Typography>
         </Stack>
       </Paper>
-
-      {error ? <Alert severity="error">{error}</Alert> : null}
-      {success ? <Alert severity="success">{success}</Alert> : null}
 
       <TableContainer component={Paper}>
         <Table>

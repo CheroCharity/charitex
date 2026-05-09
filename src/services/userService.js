@@ -93,6 +93,32 @@ export async function onboardBusiness({ businessName, adminEmail, staffEmails })
   return data;
 }
 
+export async function onboardBusinessWithUsers({ businessName, adminEmail, adminPassword, staff }) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
+    throw new Error("You must be logged in.");
+  }
+
+  const response = await fetch("/api/super-admin/onboard-business", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ businessName, adminEmail, adminPassword, staff }),
+  });
+
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload?.error || "Failed to onboard business.");
+  }
+
+  return payload;
+}
+
 export async function onboardUserAccount({ email, password, role, businessId }) {
   const {
     data: { session },

@@ -16,17 +16,29 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getTransactions } from "@/services/stockService";
 
 function toCsv(rows) {
-  const headers = ["date", "product", "type", "payment_method", "quantity", "unit_price_snapshot", "line_value", "note"];
+  const headers = [
+    "date",
+    "product",
+    "type",
+    "payment_method",
+    "quantity",
+    "buying_price_snapshot",
+    "selling_price_snapshot",
+    "line_value",
+    "note",
+  ];
   const content = rows.map((tx) => {
-    const price = Number(tx.unit_price_snapshot || 0);
-    const line = Number(tx.quantity || 0) * price;
+    const buyingPrice = Number(tx.buying_price_snapshot || 0);
+    const sellingPrice = Number(tx.selling_price_snapshot || tx.unit_price_snapshot || 0);
+    const line = Number(tx.quantity || 0) * (tx.type === "IN" ? buyingPrice : sellingPrice);
     return [
       tx.date,
       tx.products?.name || "",
       tx.type,
       tx.payment_method || "",
       tx.quantity,
-      price,
+      buyingPrice,
+      sellingPrice,
       line,
       (tx.note || "").replaceAll(",", " "),
     ].join(",");

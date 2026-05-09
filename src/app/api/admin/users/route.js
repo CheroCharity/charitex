@@ -36,16 +36,18 @@ function validatePayload({ email, password, role }) {
   return null;
 }
 
-async function getActorFromToken(url, anonKey, authHeader) {
-  const actorClient = createClient(url, anonKey, {
-    global: { headers: { Authorization: authHeader } },
+async function getActorFromToken(url, serviceRoleKey, authHeader) {
+  const accessToken = String(authHeader || "").replace(/^Bearer\s+/i, "").trim();
+  if (!accessToken) return null;
+
+  const actorClient = createClient(url, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
   const {
     data: { user: actorUser },
     error: actorError,
-  } = await actorClient.auth.getUser();
+  } = await actorClient.auth.getUser(accessToken);
 
   if (actorError || !actorUser) return null;
   return actorUser;
@@ -106,9 +108,9 @@ export async function POST(request) {
       return forbidden("Missing access token.");
     }
 
-    const { url, anonKey, serviceRoleKey } = getSupabaseConfig();
+    const { url, serviceRoleKey } = getSupabaseConfig();
 
-    const actorUser = await getActorFromToken(url, anonKey, authHeader);
+    const actorUser = await getActorFromToken(url, serviceRoleKey, authHeader);
     if (!actorUser) {
       return forbidden("Invalid session.");
     }

@@ -33,7 +33,8 @@ export default function MovementTable({ rows }) {
             <TableCell>Type</TableCell>
             <TableCell>Payment</TableCell>
             <TableCell align="right">Quantity</TableCell>
-            <TableCell align="right">Unit Price (Snapshot)</TableCell>
+            <TableCell align="right">Buying Price (Snapshot)</TableCell>
+            <TableCell align="right">Selling Price (Snapshot)</TableCell>
             <TableCell align="right">Line Value</TableCell>
             <TableCell>Note</TableCell>
           </TableRow>
@@ -41,7 +42,7 @@ export default function MovementTable({ rows }) {
         <TableBody>
           {rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8}>
+              <TableCell colSpan={9}>
                 <Typography color="text.secondary" align="center" py={2}>
                   No transactions found.
                 </Typography>
@@ -49,8 +50,9 @@ export default function MovementTable({ rows }) {
             </TableRow>
           ) : (
             rows.map((tx) => {
-              const snapshotPrice = Number(tx.unit_price_snapshot || 0);
-              const lineValue = Number(tx.quantity || 0) * snapshotPrice;
+              const buyingSnapshotPrice = Number(tx.buying_price_snapshot || 0);
+              const sellingSnapshotPrice = Number(tx.selling_price_snapshot || tx.unit_price_snapshot || 0);
+              const lineValue = Number(tx.quantity || 0) * (tx.type === "IN" ? buyingSnapshotPrice : sellingSnapshotPrice);
               return (
                 <TableRow key={tx.id} hover>
                   <TableCell>{format(new Date(tx.date), "yyyy-MM-dd")}</TableCell>
@@ -60,7 +62,8 @@ export default function MovementTable({ rows }) {
                   </TableCell>
                   <TableCell>{tx.payment_method || "-"}</TableCell>
                   <TableCell align="right">{tx.quantity}</TableCell>
-                  <TableCell align="right">{toCurrency(snapshotPrice)}</TableCell>
+                  <TableCell align="right">{toCurrency(buyingSnapshotPrice)}</TableCell>
+                  <TableCell align="right">{toCurrency(sellingSnapshotPrice)}</TableCell>
                   <TableCell align="right">{toCurrency(lineValue)}</TableCell>
                   <TableCell>{tx.note || "-"}</TableCell>
                 </TableRow>

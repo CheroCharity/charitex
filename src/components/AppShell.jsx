@@ -105,7 +105,7 @@ export default function AppShell({ children }) {
   const drawer = (
     <div>
       <Toolbar>
-        <Typography variant="h6" fontWeight={700}>
+        <Typography variant="h6" fontWeight={700} color="#FFFFFF" letterSpacing={0.2}>
           Charitex
         </Typography>
       </Toolbar>
@@ -137,10 +137,10 @@ export default function AppShell({ children }) {
           ml: { sm: `${drawerWidth}px` },
         }}
       >
-        <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
+        <Toolbar sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center" }}>
             <IconButton
-              color="inherit"
+              color="default"
               aria-label="open drawer"
               edge="start"
               onClick={handleDrawerToggle}
@@ -154,13 +154,18 @@ export default function AppShell({ children }) {
             {activeBusinessName ? (
               <Chip
                 size="small"
-                color={isSwitchedContext ? "warning" : "default"}
                 label={`Business: ${activeBusinessName}`}
-                sx={{ ml: 2 }}
+                sx={{
+                  ml: 2,
+                  bgcolor: "#fdf0ec",
+                  color: "#E26A4B",
+                  border: isSwitchedContext ? "1px solid rgba(53, 35, 52, 0.6)" : "1px solid transparent",
+                  fontWeight: 600,
+                }}
               />
             ) : null}
           </Box>
-          <Button color="inherit" onClick={handleSignOut}>
+          <Button variant="outlined" onClick={handleSignOut}>
             Sign out
           </Button>
         </Toolbar>
@@ -192,7 +197,15 @@ export default function AppShell({ children }) {
         </Drawer>
       </Box>
 
-      <Box component="main" sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` } }}>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: { xs: 2, sm: 3, md: 4 },
+          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          bgcolor: "background.default",
+        }}
+      >
         <Toolbar />
         {children}
       </Box>

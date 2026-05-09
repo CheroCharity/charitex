@@ -80,6 +80,8 @@ create table if not exists public.stock_transactions (
   quantity integer not null check (quantity > 0),
   date date not null,
   note text,
+  buying_price_snapshot numeric(12,2) not null default 0,
+  selling_price_snapshot numeric(12,2) not null default 0,
   unit_price_snapshot numeric(12,2) not null default 0,
   created_at timestamptz not null default now()
 );
@@ -87,6 +89,15 @@ create table if not exists public.stock_transactions (
 alter table public.stock_transactions add column if not exists business_id uuid references public.businesses(id) on delete cascade;
 alter table public.stock_transactions add column if not exists created_by uuid references auth.users(id) on delete set null;
 alter table public.stock_transactions add column if not exists payment_method text;
+alter table public.stock_transactions add column if not exists buying_price_snapshot numeric(12,2);
+alter table public.stock_transactions add column if not exists selling_price_snapshot numeric(12,2);
+alter table public.stock_transactions alter column buying_price_snapshot set default 0;
+alter table public.stock_transactions alter column selling_price_snapshot set default 0;
+update public.stock_transactions set buying_price_snapshot = 0 where buying_price_snapshot is null;
+update public.stock_transactions set selling_price_snapshot = unit_price_snapshot where selling_price_snapshot is null;
+update public.stock_transactions set buying_price_snapshot = unit_price_snapshot where type = 'IN' and buying_price_snapshot = 0;
+alter table public.stock_transactions alter column buying_price_snapshot set not null;
+alter table public.stock_transactions alter column selling_price_snapshot set not null;
 update public.stock_transactions st
 set business_id = p.business_id
 from public.products p
@@ -106,6 +117,22 @@ begin
       add constraint stock_transactions_payment_method_check check (
         (type = 'OUT' and payment_method in ('CASH', 'MPESA'))
         or (type = 'IN' and payment_method is null)
+      );
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'stock_transactions_price_snapshot_check'
+      and conrelid = 'public.stock_transactions'::regclass
+  ) then
+    alter table public.stock_transactions
+      add constraint stock_transactions_price_snapshot_check check (
+        (type = 'IN' and buying_price_snapshot > 0 and selling_price_snapshot > 0)
+        or (type = 'OUT' and selling_price_snapshot >= 0)
       );
   end if;
 end $$;

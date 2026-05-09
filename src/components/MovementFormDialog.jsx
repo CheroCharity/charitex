@@ -22,6 +22,8 @@ export default function MovementFormDialog({ open, onClose, onSubmit, products, 
     quantity: "",
     type: allowedTypes[0] || "OUT",
     paymentMethod: "",
+    buyingPrice: "",
+    sellingPrice: "",
     date: "",
     note: "",
   });
@@ -36,10 +38,9 @@ export default function MovementFormDialog({ open, onClose, onSubmit, products, 
           ...prev,
           date: prev.date || today,
           type: nextType,
-          paymentMethod:
-            nextType === "OUT"
-              ? (prev.paymentMethod || "CASH")
-              : "",
+          paymentMethod: nextType === "OUT" ? (prev.paymentMethod || "CASH") : "",
+          buyingPrice: nextType === "IN" ? prev.buyingPrice : "",
+          sellingPrice: nextType === "IN" ? prev.sellingPrice : "",
         };
       });
     }
@@ -117,6 +118,30 @@ export default function MovementFormDialog({ open, onClose, onSubmit, products, 
               fullWidth
             />
           </Box>
+          {form.type === "IN" ? (
+            <>
+              <Box>
+                <TextField
+                  label="Buying Price"
+                  type="number"
+                  inputProps={{ min: 0, step: "0.01" }}
+                  value={form.buyingPrice}
+                  onChange={handleChange("buyingPrice")}
+                  fullWidth
+                />
+              </Box>
+              <Box>
+                <TextField
+                  label="Selling Price"
+                  type="number"
+                  inputProps={{ min: 0, step: "0.01" }}
+                  value={form.sellingPrice}
+                  onChange={handleChange("sellingPrice")}
+                  fullWidth
+                />
+              </Box>
+            </>
+          ) : null}
           <Box sx={{ gridColumn: "1 / -1" }}>
             <TextField
               label="Date"
