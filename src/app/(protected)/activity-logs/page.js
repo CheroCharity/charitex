@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   Box,
   Button,
+  CircularProgress,
   MenuItem,
   Paper,
   Stack,
@@ -19,6 +19,7 @@ import {
   Typography,
 } from "@mui/material";
 import { format } from "date-fns";
+import StatusDialog from "@/components/StatusDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { getActivityLogs, getActivityLogsForExport } from "@/services/activityLogService";
 
@@ -73,12 +74,15 @@ function toCsv(rows) {
 }
 
 export default function ActivityLogsPage() {
-  const { businessId } = useAuth();
+  const { businessId, isStaff } = useAuth();
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(20);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loadingFilters, setLoadingFilters] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [filters, setFilters] = useState({ from: "", to: "", action: "" });
 
   const loadData = async () => {
@@ -92,8 +96,10 @@ export default function ActivityLogsPage() {
       });
       setRows(data.rows);
       setTotal(data.total);
+      return true;
     } catch (err) {
       setError(err.message || "Failed to load activity logs.");
+      return false;
     }
   };
 
@@ -108,11 +114,19 @@ export default function ActivityLogsPage() {
 
   const handleApplyFilters = () => {
     setPage(0);
-    loadData();
+    setLoadingFilters(true);
+    loadData().then((ok) => {
+      if (ok) {
+        setSuccess("Filters applied successfully.");
+      }
+    }).finally(() => {
+      setLoadingFilters(false);
+    });
   };
 
   const handleExport = async () => {
     try {
+      setExporting(true);
       setError("");
       const exportRows = await getActivityLogsForExport(businessId, filters);
       const csv = toCsv(exportRows);
@@ -125,8 +139,11 @@ export default function ActivityLogsPage() {
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
+      setSuccess("Activity logs exported successfully.");
     } catch (err) {
       setError(err.message || "Failed to export logs.");
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -135,13 +152,26 @@ export default function ActivityLogsPage() {
     [rows]
   );
 
+  if (isStaff) {
+    return (
+      <StatusDialog
+        open
+        severity="warning"
+        title="Access Restricted"
+        message="You do not have access to activity logs."
+        onClose={() => {}}
+      />
+    );
+  }
+
   return (
     <Stack spacing={2}>
       <Typography variant="h4" fontWeight={700}>
         Activity Logs
       </Typography>
 
-      {error ? <Alert severity="error">{error}</Alert> : null}
+      <StatusDialog open={Boolean(error)} severity="error" message={error} onClose={() => setError("")} />
+      <StatusDialog open={Boolean(success)} severity="success" message={success} onClose={() => setSuccess("")} />
 
       <Paper sx={{ p: 2 }}>
         <Box
@@ -187,13 +217,25 @@ export default function ActivityLogsPage() {
             </TextField>
           </Box>
           <Box>
-            <Button variant="outlined" onClick={handleApplyFilters} fullWidth>
-              Apply Filters
+            <Button
+              variant="outlined"
+              onClick={handleApplyFilters}
+              fullWidth
+              disabled={loadingFilters}
+              startIcon={loadingFilters ? <CircularProgress size={16} color="inherit" /> : null}
+            >
+              {loadingFilters ? "Applying..." : "Apply Filters"}
             </Button>
           </Box>
           <Box sx={{ gridColumn: { xs: "1", sm: "1 / span 4" } }}>
-            <Button variant="contained" onClick={handleExport} fullWidth>
-              Export CSV
+            <Button
+              variant="contained"
+              onClick={handleExport}
+              fullWidth
+              disabled={exporting}
+              startIcon={exporting ? <CircularProgress size={16} color="inherit" /> : null}
+            >
+              {exporting ? "Exporting..." : "Export CSV"}
             </Button>
           </Box>
         </Box>

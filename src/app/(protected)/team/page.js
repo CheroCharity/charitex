@@ -5,6 +5,7 @@ import {
   Alert,
   Button,
   Chip,
+  CircularProgress,
   MenuItem,
   Paper,
   Stack,
@@ -17,9 +18,11 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import StatusDialog from "@/components/StatusDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   assignBusinessUserRole,
+  setBusinessUserLocation,
   getBusinessesOverview,
   getTeamUsers,
   onboardUserAccount,
@@ -32,14 +35,17 @@ export default function TeamPage() {
   const [rows, setRows] = useState([]);
   const [businesses, setBusinesses] = useState([]);
   const [pendingRole, setPendingRole] = useState({});
+  const [pendingLocation, setPendingLocation] = useState({});
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [busyUserId, setBusyUserId] = useState("");
   const [busyBusinessId, setBusyBusinessId] = useState("");
+  const [onboardingBusy, setOnboardingBusy] = useState(false);
   const [onboarding, setOnboarding] = useState({
     email: "",
     password: "",
     role: "staff",
+    location: "",
     businessId: "",
   });
 
@@ -53,6 +59,12 @@ export default function TeamPage() {
       setPendingRole(
         data.reduce((acc, item) => {
           acc[item.id] = item.role;
+          return acc;
+        }, {})
+      );
+      setPendingLocation(
+        data.reduce((acc, item) => {
+          acc[item.id] = item.location || "";
           return acc;
         }, {})
       );
@@ -129,6 +141,7 @@ export default function TeamPage() {
 
   const handleOnboardUser = async () => {
     try {
+      setOnboardingBusy(true);
       setError("");
       setSuccess("");
       if (!onboarding.email || !onboarding.password) {
@@ -145,6 +158,7 @@ export default function TeamPage() {
         password: onboarding.password,
         role: onboarding.role,
         businessId: targetBusinessId,
+        location: onboarding.role === "staff" ? onboarding.location : "",
       });
 
       setSuccess("User onboarded successfully.");
@@ -152,15 +166,41 @@ export default function TeamPage() {
         ...prev,
         email: "",
         password: "",
+        location: "",
       }));
       await loadUsers();
     } catch (err) {
       setError(err.message || "Failed to onboard user.");
+    } finally {
+      setOnboardingBusy(false);
+    }
+  };
+
+  const updateLocation = async (targetUserId) => {
+    try {
+      setError("");
+      setSuccess("");
+      setBusyUserId(targetUserId);
+      await setBusinessUserLocation(targetUserId, pendingLocation[targetUserId] || "");
+      setSuccess("Staff location updated.");
+      await loadUsers();
+    } catch (err) {
+      setError(err.message || "Failed to update location.");
+    } finally {
+      setBusyUserId("");
     }
   };
 
   if (!canManageTeam) {
-    return <Alert severity="warning">Only business admins and super admins can access Team Management.</Alert>;
+    return (
+      <StatusDialog
+        open
+        severity="warning"
+        title="Access Restricted"
+        message="Only business admins and super admins can access Team Management."
+        onClose={() => {}}
+      />
+    );
   }
 
   return (
@@ -203,6 +243,14 @@ export default function TeamPage() {
             <MenuItem value="admin">admin</MenuItem>
             <MenuItem value="staff">staff</MenuItem>
           </TextField>
+          <TextField
+            label="Staff Location"
+            value={onboarding.location}
+            onChange={(e) => setOnboarding((prev) => ({ ...prev, location: e.target.value }))}
+            helperText="Optional for admins. Used for staff branch/working location."
+            disabled={onboarding.role !== "staff"}
+            fullWidth
+          />
           {isSuperAdmin ? (
             <TextField
               select
@@ -218,14 +266,21 @@ export default function TeamPage() {
               ))}
             </TextField>
           ) : null}
-          <Button variant="contained" onClick={handleOnboardUser} fullWidth sx={{ width: { sm: "fit-content" } }}>
-            Create User
+          <Button
+            variant="contained"
+            onClick={handleOnboardUser}
+            fullWidth
+            sx={{ width: { sm: "fit-content" } }}
+            disabled={onboardingBusy}
+            startIcon={onboardingBusy ? <CircularProgress size={16} color="inherit" /> : null}
+          >
+            {onboardingBusy ? "Creating..." : "Create User"}
           </Button>
         </Stack>
       </Paper>
 
-      {error ? <Alert severity="error">{error}</Alert> : null}
-      {success ? <Alert severity="success">{success}</Alert> : null}
+      <StatusDialog open={Boolean(error)} severity="error" message={error} onClose={() => setError("")} />
+      <StatusDialog open={Boolean(success)} severity="success" message={success} onClose={() => setSuccess("")} />
 
       <TableContainer component={Paper} sx={{ overflowX: "auto" }}>
         <Table sx={{ minWidth: 980 }}>
@@ -233,6 +288,7 @@ export default function TeamPage() {
             <TableRow>
               <TableCell>Email</TableCell>
               <TableCell>Business</TableCell>
+              <TableCell>Staff Location</TableCell>
               <TableCell>Current Role</TableCell>
               <TableCell>Assign Role</TableCell>
               <TableCell>Status</TableCell>
@@ -242,7 +298,7 @@ export default function TeamPage() {
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6}>
+                <TableCell colSpan={7}>
                   <Typography color="text.secondary" align="center" py={2}>
                     No users found for this business.
                   </Typography>
@@ -252,6 +308,13 @@ export default function TeamPage() {
               rows.map((item) => {
                 const isSelf = item.id === user?.id;
                 const disableStatusAction = item.is_super_admin;
+                const isUserBusy = busyUserId === item.id;
+                let userStatusLabel = "Activate";
+                if (isUserBusy) {
+                  userStatusLabel = "Saving...";
+                } else if (item.is_active) {
+                  userStatusLabel = "Deactivate";
+                }
                 return (
                   <TableRow key={item.id} hover>
                     <TableCell>
@@ -259,6 +322,21 @@ export default function TeamPage() {
                       {isSelf ? " (You)" : ""}
                     </TableCell>
                     <TableCell>{item.businesses?.name || "-"}</TableCell>
+                    <TableCell sx={{ width: 240 }}>
+                      <TextField
+                        size="small"
+                        value={pendingLocation[item.id] || ""}
+                        onChange={(e) =>
+                          setPendingLocation((prev) => ({
+                            ...prev,
+                            [item.id]: e.target.value,
+                          }))
+                        }
+                        disabled={item.role !== "staff" || item.is_super_admin}
+                        placeholder={item.role === "staff" ? "e.g. Westlands" : "N/A"}
+                        fullWidth
+                      />
+                    </TableCell>
                     <TableCell>{item.role}</TableCell>
                     <TableCell sx={{ width: 220 }}>
                       <TextField
@@ -299,19 +377,30 @@ export default function TeamPage() {
                         <Button
                           variant="outlined"
                           size="small"
-                          disabled={busyUserId === item.id}
+                          disabled={isUserBusy}
                           onClick={() => updateRole(item.id)}
+                          startIcon={isUserBusy ? <CircularProgress size={14} color="inherit" /> : null}
                         >
-                          Save
+                          {isUserBusy ? "Saving..." : "Save"}
                         </Button>
                         <Button
                           variant="contained"
                           color={item.is_active ? "warning" : "success"}
                           size="small"
-                          disabled={busyUserId === item.id || disableStatusAction}
+                          disabled={isUserBusy || disableStatusAction}
                           onClick={() => toggleUserStatus(item.id, !item.is_active)}
+                          startIcon={isUserBusy ? <CircularProgress size={14} color="inherit" /> : null}
                         >
-                          {item.is_active ? "Deactivate" : "Activate"}
+                          {userStatusLabel}
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          disabled={isUserBusy || item.role !== "staff" || item.is_super_admin}
+                          onClick={() => updateLocation(item.id)}
+                          startIcon={isUserBusy ? <CircularProgress size={14} color="inherit" /> : null}
+                        >
+                          {isUserBusy ? "Saving..." : "Save Location"}
                         </Button>
                       </Stack>
                     </TableCell>
@@ -329,6 +418,7 @@ export default function TeamPage() {
             <TableHead>
               <TableRow>
                 <TableCell>Business</TableCell>
+                <TableCell>Locations</TableCell>
                 <TableCell>Admins</TableCell>
                 <TableCell>Staff</TableCell>
                 <TableCell>Status</TableCell>
@@ -338,16 +428,25 @@ export default function TeamPage() {
             <TableBody>
               {businesses.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5}>
+                  <TableCell colSpan={6}>
                     <Typography color="text.secondary" align="center" py={2}>
                       No businesses found.
                     </Typography>
                   </TableCell>
                 </TableRow>
               ) : (
-                businesses.map((item) => (
+                businesses.map((item) => {
+                  const isBusinessBusy = busyBusinessId === item.id;
+                  let businessActionLabel = "Freeze";
+                  if (isBusinessBusy) {
+                    businessActionLabel = "Saving...";
+                  } else if (item.is_frozen) {
+                    businessActionLabel = "Unfreeze";
+                  }
+                  return (
                   <TableRow key={item.id} hover>
                     <TableCell>{item.name}</TableCell>
+                    <TableCell>{Array.isArray(item.locations) && item.locations.length ? item.locations.join(", ") : "-"}</TableCell>
                     <TableCell>{item.admins}</TableCell>
                     <TableCell>{item.staff}</TableCell>
                     <TableCell>
@@ -362,14 +461,16 @@ export default function TeamPage() {
                         size="small"
                         variant="contained"
                         color={item.is_frozen ? "success" : "warning"}
-                        disabled={busyBusinessId === item.id}
+                        disabled={isBusinessBusy}
                         onClick={() => toggleBusinessFrozenStatus(item.id, !item.is_frozen)}
+                        startIcon={isBusinessBusy ? <CircularProgress size={14} color="inherit" /> : null}
                       >
-                        {item.is_frozen ? "Unfreeze" : "Freeze"}
+                        {businessActionLabel}
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))
+                );
+                })
               )}
             </TableBody>
           </Table>

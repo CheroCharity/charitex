@@ -37,7 +37,7 @@ export default function AppShell({ children }) {
   const [activeBusinessName, setActiveBusinessName] = useState("");
   const pathname = usePathname();
   const router = useRouter();
-  const { signOut, isAdmin, isSuperAdmin, businessId, ownBusinessId } = useAuth();
+  const { signOut, isAdmin, isStaff, isSuperAdmin, businessId, ownBusinessId } = useAuth();
 
   const isSwitchedContext = Boolean(isSuperAdmin && businessId && ownBusinessId && businessId !== ownBusinessId);
 
@@ -81,8 +81,11 @@ export default function AppShell({ children }) {
         { label: "Products", href: "/products", icon: <Inventory2Icon /> },
         { label: "Stock In/Out", href: "/movements", icon: <SwapHorizIcon /> },
         { label: "Reports", href: "/reports", icon: <AssessmentIcon /> },
-        { label: "Activity Logs", href: "/activity-logs", icon: <HistoryIcon /> },
       ];
+
+      if (!isStaff) {
+        base.push({ label: "Activity Logs", href: "/activity-logs", icon: <HistoryIcon /> });
+      }
 
       if (isAdmin || isSuperAdmin) {
         base.push({ label: "Team", href: "/team", icon: <GroupIcon /> });
@@ -94,7 +97,7 @@ export default function AppShell({ children }) {
 
       return base;
     },
-    [isAdmin, isSuperAdmin]
+    [isAdmin, isStaff, isSuperAdmin]
   );
 
   const handleDrawerToggle = () => {

@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   Box,
   Button,
+  CircularProgress,
   Paper,
   Stack,
   TextField,
@@ -12,6 +12,7 @@ import {
 } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 import MovementTable from "@/components/MovementTable";
+import StatusDialog from "@/components/StatusDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { getTransactions } from "@/services/stockService";
 
@@ -26,6 +27,7 @@ function toCsv(rows) {
     "selling_price_snapshot",
     "line_value",
     "note",
+    "updated_by",
   ];
   const content = rows.map((tx) => {
     const buyingPrice = Number(tx.buying_price_snapshot || 0);
@@ -41,6 +43,7 @@ function toCsv(rows) {
       sellingPrice,
       line,
       (tx.note || "").replaceAll(",", " "),
+      (tx.updated_by_email || "").replaceAll(",", " "),
     ].join(",");
   });
 
@@ -51,6 +54,9 @@ export default function ReportsPage() {
   const { businessId } = useAuth();
   const [rows, setRows] = useState([]);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loadingData, setLoadingData] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [filters, setFilters] = useState({ from: "", to: "" });
 
   const sortedRows = useMemo(() => {
@@ -60,11 +66,14 @@ export default function ReportsPage() {
   const loadData = async () => {
     if (!businessId) return;
     try {
+      setLoadingData(true);
       setError("");
       const data = await getTransactions(businessId, filters);
       setRows(data);
     } catch (err) {
       setError(err.message || "Failed to load reports");
+    } finally {
+      setLoadingData(false);
     }
   };
 
@@ -77,17 +86,31 @@ export default function ReportsPage() {
     setFilters((prev) => ({ ...prev, [field]: event.target.value }));
   };
 
-  const handleExport = () => {
-    const csv = toCsv(sortedRows);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `charitex-report-${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      setError("");
+      const csv = toCsv(sortedRows);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `charitex-report-${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setSuccess("Report exported successfully.");
+    } catch (err) {
+      setError(err.message || "Failed to export report.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleApplyFilters = async () => {
+    await loadData();
+    setSuccess("Report filters applied.");
   };
 
   return (
@@ -96,7 +119,8 @@ export default function ReportsPage() {
         Reports
       </Typography>
 
-      {error ? <Alert severity="error">{error}</Alert> : null}
+      <StatusDialog open={Boolean(error)} severity="error" message={error} onClose={() => setError("")} />
+      <StatusDialog open={Boolean(success)} severity="success" message={success} onClose={() => setSuccess("")} />
 
       <Paper sx={{ p: 2 }}>
         <Box
@@ -131,19 +155,27 @@ export default function ReportsPage() {
             <Stack
               direction={{ xs: "column", sm: "row" }}
               spacing={1}
-              justifyContent={{ xs: "flex-start", sm: "flex-end" }}
+              sx={{ justifyContent: { xs: "flex-start", sm: "flex-end" } }}
             >
-              <Button variant="outlined" onClick={loadData} fullWidth sx={{ width: { sm: "auto" } }}>
-                Apply Filters
+              <Button
+                variant="outlined"
+                onClick={handleApplyFilters}
+                fullWidth
+                sx={{ width: { sm: "auto" } }}
+                disabled={loadingData}
+                startIcon={loadingData ? <CircularProgress size={16} color="inherit" /> : null}
+              >
+                {loadingData ? "Applying..." : "Apply Filters"}
               </Button>
               <Button
                 variant="contained"
                 startIcon={<DownloadIcon />}
                 onClick={handleExport}
+                disabled={exporting}
                 fullWidth
                 sx={{ width: { sm: "auto" } }}
               >
-                Export CSV
+                {exporting ? "Exporting..." : "Export CSV"}
               </Button>
             </Stack>
           </Box>

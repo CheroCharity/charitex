@@ -6,6 +6,7 @@ create extension if not exists "pgcrypto";
 create table if not exists public.businesses (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  locations text[] not null default '{}'::text[],
   is_frozen boolean not null default false,
   created_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now()
@@ -15,6 +16,7 @@ create table if not exists public.users_profile (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null unique,
   business_id uuid references public.businesses(id) on delete restrict,
+  location text,
   role text not null default 'admin' check (role in ('admin', 'staff')),
   is_active boolean not null default true,
   is_super_admin boolean not null default false,
@@ -22,10 +24,14 @@ create table if not exists public.users_profile (
 );
 
 alter table public.businesses add column if not exists is_frozen boolean;
+alter table public.businesses add column if not exists locations text[];
+alter table public.businesses alter column locations set default '{}'::text[];
+update public.businesses set locations = '{}'::text[] where locations is null;
 alter table public.businesses alter column is_frozen set default false;
 update public.businesses set is_frozen = false where is_frozen is null;
 
 alter table public.users_profile add column if not exists business_id uuid references public.businesses(id) on delete restrict;
+alter table public.users_profile add column if not exists location text;
 alter table public.users_profile add column if not exists role text;
 alter table public.users_profile add column if not exists is_active boolean;
 alter table public.users_profile add column if not exists is_super_admin boolean;
@@ -74,6 +80,7 @@ create table if not exists public.stock_transactions (
   user_id uuid not null references auth.users(id) on delete cascade,
   business_id uuid references public.businesses(id) on delete cascade,
   created_by uuid references auth.users(id) on delete set null,
+  updated_by uuid references auth.users(id) on delete set null,
   product_id uuid not null references public.products(id) on delete cascade,
   type text not null check (type in ('IN', 'OUT')),
   payment_method text,
@@ -83,11 +90,16 @@ create table if not exists public.stock_transactions (
   buying_price_snapshot numeric(12,2) not null default 0,
   selling_price_snapshot numeric(12,2) not null default 0,
   unit_price_snapshot numeric(12,2) not null default 0,
+  updated_at timestamptz not null default now(),
   created_at timestamptz not null default now()
 );
 
 alter table public.stock_transactions add column if not exists business_id uuid references public.businesses(id) on delete cascade;
 alter table public.stock_transactions add column if not exists created_by uuid references auth.users(id) on delete set null;
+alter table public.stock_transactions add column if not exists updated_by uuid references auth.users(id) on delete set null;
+alter table public.stock_transactions add column if not exists updated_at timestamptz;
+alter table public.stock_transactions alter column updated_at set default now();
+update public.stock_transactions set updated_at = created_at where updated_at is null;
 alter table public.stock_transactions add column if not exists payment_method text;
 alter table public.stock_transactions add column if not exists buying_price_snapshot numeric(12,2);
 alter table public.stock_transactions add column if not exists selling_price_snapshot numeric(12,2);
@@ -103,6 +115,7 @@ set business_id = p.business_id
 from public.products p
 where st.product_id = p.id and st.business_id is null;
 update public.stock_transactions set created_by = user_id where created_by is null;
+update public.stock_transactions set updated_by = coalesce(updated_by, created_by, user_id) where updated_by is null;
 update public.stock_transactions set payment_method = 'CASH' where type = 'OUT' and payment_method is null;
 
 do $$
@@ -156,6 +169,7 @@ create index if not exists idx_tx_user_id on public.stock_transactions(user_id);
 create index if not exists idx_tx_business_id on public.stock_transactions(business_id);
 create index if not exists idx_tx_product_id on public.stock_transactions(product_id);
 create index if not exists idx_tx_date on public.stock_transactions(date);
+create index if not exists idx_tx_updated_by on public.stock_transactions(updated_by);
 create index if not exists idx_activity_logs_business_id on public.activity_logs(business_id);
 create index if not exists idx_activity_logs_user_id on public.activity_logs(user_id);
 create index if not exists idx_activity_logs_created_at on public.activity_logs(created_at desc);
@@ -321,7 +335,9 @@ create policy "Super admins can manage all transactions" on public.stock_transac
   with check (public.current_user_is_super_admin());
 
 create policy "Users can view own business activity logs" on public.activity_logs
-  for select using (business_id = public.current_user_business_id());
+  for select using (
+    business_id = public.current_user_business_id() and public.current_user_role() = 'admin'
+  );
 
 create policy "Users can insert own activity logs" on public.activity_logs
   for insert with check (
@@ -539,6 +555,72 @@ begin
     target_user_id,
     'UPDATE',
     jsonb_build_object('is_active', make_active)
+  );
+end;
+$$;
+
+create or replace function public.set_business_user_location(target_user_id uuid, new_location text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_business_id uuid;
+  actor_role text;
+  actor_super boolean;
+  target_business_id uuid;
+  target_role text;
+  normalized_location text;
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated.';
+  end if;
+
+  select business_id, role, coalesce(is_super_admin, false)
+  into actor_business_id, actor_role, actor_super
+  from public.users_profile
+  where id = auth.uid();
+
+  if actor_business_id is null and not coalesce(actor_super, false) then
+    raise exception 'Your account is not assigned to a business.';
+  end if;
+
+  if not coalesce(actor_super, false) and actor_role <> 'admin' then
+    raise exception 'Only admins can update staff locations.';
+  end if;
+
+  select business_id, role
+  into target_business_id, target_role
+  from public.users_profile
+  where id = target_user_id;
+
+  if target_business_id is null then
+    raise exception 'Target user not found.';
+  end if;
+
+  if target_role <> 'staff' then
+    raise exception 'Location can only be set for staff users.';
+  end if;
+
+  if not coalesce(actor_super, false) and target_business_id <> actor_business_id then
+    raise exception 'You can only manage users in your business.';
+  end if;
+
+  normalized_location := nullif(btrim(coalesce(new_location, '')), '');
+
+  update public.users_profile
+  set location = normalized_location
+  where id = target_user_id;
+
+  insert into public.activity_logs (business_id, user_id, entity_table, entity_id, action, payload)
+  values (
+    target_business_id,
+    auth.uid(),
+    'users_profile',
+    target_user_id,
+    'UPDATE',
+    jsonb_build_object('location', normalized_location)
   );
 end;
 $$;

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getActorFromTokenWithFallback } from "@/utils/serverAuth";
 
 function getSupabaseConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -27,21 +28,16 @@ function parseStaff(staffInput) {
     .filter((item) => item.email);
 }
 
-async function getActor(url, serviceRoleKey, authHeader) {
-  const accessToken = String(authHeader || "").replace(/^Bearer\s+/i, "").trim();
-  if (!accessToken) return null;
+function parseBusinessLocations(locationsInput) {
+  if (!Array.isArray(locationsInput)) return [];
+  return locationsInput
+    .map((item) => String(item || "").trim())
+    .filter(Boolean);
+}
 
-  const actorClient = createClient(url, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-  const {
-    data: { user },
-    error,
-  } = await actorClient.auth.getUser(accessToken);
-
-  if (error || !user) return null;
-  return user;
+function isMissingLocationsColumnError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return message.includes("locations") && message.includes("businesses");
 }
 
 async function upsertUserProfile(adminClient, { email, businessId, role, password }) {
@@ -103,7 +99,7 @@ export async function POST(request) {
     }
 
     const { url, serviceRoleKey } = getSupabaseConfig();
-    const actor = await getActor(url, serviceRoleKey, authHeader);
+    const actor = await getActorFromTokenWithFallback({ url, serviceRoleKey, authHeader });
 
     if (!actor) {
       return jsonError("Invalid session.", 403);
@@ -129,6 +125,7 @@ export async function POST(request) {
 
     const body = await request.json();
     const businessName = String(body?.businessName || "").trim();
+    const businessLocations = parseBusinessLocations(body?.businessLocations);
     const adminEmail = String(body?.adminEmail || "").trim().toLowerCase();
     const adminPassword = String(body?.adminPassword || "");
     const staff = parseStaff(body?.staff);
@@ -136,14 +133,28 @@ export async function POST(request) {
     if (!businessName) return jsonError("Business name is required.");
     if (!adminEmail) return jsonError("Admin email is required.");
 
-    const { data: business, error: businessError } = await adminClient
+    const { data: businessWithLocations, error: businessWithLocationsError } = await adminClient
       .from("businesses")
-      .insert([{ name: businessName, created_by: actor.id }])
+      .insert([{ name: businessName, locations: businessLocations, created_by: actor.id }])
       .select("id")
       .single();
 
-    if (businessError || !business?.id) {
-      return jsonError(businessError?.message || "Failed to create business.");
+    let business = businessWithLocations;
+
+    if (businessWithLocationsError && isMissingLocationsColumnError(businessWithLocationsError)) {
+      const { data: fallbackBusiness, error: fallbackBusinessError } = await adminClient
+        .from("businesses")
+        .insert([{ name: businessName, created_by: actor.id }])
+        .select("id")
+        .single();
+
+      if (fallbackBusinessError || !fallbackBusiness?.id) {
+        return jsonError(fallbackBusinessError?.message || "Failed to create business.");
+      }
+
+      business = fallbackBusiness;
+    } else if (businessWithLocationsError || !businessWithLocations?.id) {
+      return jsonError(businessWithLocationsError?.message || "Failed to create business.");
     }
 
     const businessId = business.id;
@@ -173,7 +184,7 @@ export async function POST(request) {
         entity_table: "businesses",
         entity_id: businessId,
         action: "INSERT",
-        payload: { name: businessName },
+        payload: { name: businessName, locations: businessLocations },
       },
       {
         business_id: businessId,

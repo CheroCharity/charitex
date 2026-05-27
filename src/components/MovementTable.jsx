@@ -3,6 +3,7 @@
 
 import {
   Chip,
+  IconButton,
   Paper,
   Table,
   TableBody,
@@ -12,6 +13,7 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
 import { format } from "date-fns";
 
 function toCurrency(value) {
@@ -22,7 +24,7 @@ function toCurrency(value) {
   }).format(Number(value || 0));
 }
 
-export default function MovementTable({ rows }) {
+export default function MovementTable({ rows, canEdit = false, onEdit = null }) {
   return (
     <TableContainer component={Paper} sx={{ overflowX: "auto" }}>
       <Table sx={{ minWidth: 980 }}>
@@ -41,12 +43,14 @@ export default function MovementTable({ rows }) {
             </TableCell>
             <TableCell align="right">Line Value</TableCell>
             <TableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>Note</TableCell>
+            <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>Updated By</TableCell>
+            {canEdit ? <TableCell align="right">Actions</TableCell> : null}
           </TableRow>
         </TableHead>
         <TableBody>
           {rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9}>
+              <TableCell colSpan={canEdit ? 11 : 10}>
                 <Typography color="text.secondary" align="center" py={2}>
                   No transactions found.
                 </Typography>
@@ -74,6 +78,14 @@ export default function MovementTable({ rows }) {
                   </TableCell>
                   <TableCell align="right">{toCurrency(lineValue)}</TableCell>
                   <TableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>{tx.note || "-"}</TableCell>
+                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>{tx.updated_by_email || "-"}</TableCell>
+                  {canEdit ? (
+                    <TableCell align="right">
+                      <IconButton size="small" onClick={() => onEdit?.(tx)} aria-label="Edit transaction">
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </TableCell>
+                  ) : null}
                 </TableRow>
               );
             })

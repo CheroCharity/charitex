@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getActorFromTokenWithFallback } from "@/utils/serverAuth";
 
 function getSupabaseConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -25,8 +26,9 @@ function parsePayload(body) {
   const email = String(body?.email || "").trim().toLowerCase();
   const password = String(body?.password || "");
   const role = String(body?.role || "").trim().toLowerCase();
+  const location = String(body?.location || "").trim();
   const requestedBusinessId = body?.businessId ? String(body.businessId) : null;
-  return { email, password, role, requestedBusinessId };
+  return { email, password, role, location, requestedBusinessId };
 }
 
 function validatePayload({ email, password, role }) {
@@ -34,23 +36,6 @@ function validatePayload({ email, password, role }) {
   if (!password || password.length < 8) return "Password must be at least 8 characters.";
   if (!["admin", "staff"].includes(role)) return "Role must be admin or staff.";
   return null;
-}
-
-async function getActorFromToken(url, serviceRoleKey, authHeader) {
-  const accessToken = String(authHeader || "").replace(/^Bearer\s+/i, "").trim();
-  if (!accessToken) return null;
-
-  const actorClient = createClient(url, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-  const {
-    data: { user: actorUser },
-    error: actorError,
-  } = await actorClient.auth.getUser(accessToken);
-
-  if (actorError || !actorUser) return null;
-  return actorUser;
 }
 
 async function getActorProfile(adminClient, actorId) {
@@ -110,7 +95,7 @@ export async function POST(request) {
 
     const { url, serviceRoleKey } = getSupabaseConfig();
 
-    const actorUser = await getActorFromToken(url, serviceRoleKey, authHeader);
+    const actorUser = await getActorFromTokenWithFallback({ url, serviceRoleKey, authHeader });
     if (!actorUser) {
       return forbidden("Invalid session.");
     }
@@ -169,6 +154,7 @@ export async function POST(request) {
           email: payload.email,
           business_id: targetBusinessId,
           role: payload.role,
+          location: payload.role === "staff" ? payload.location || null : null,
           is_active: true,
           is_super_admin: false,
         },
@@ -189,12 +175,19 @@ export async function POST(request) {
         payload: {
           email: payload.email,
           role: payload.role,
+          location: payload.role === "staff" ? payload.location || null : null,
           is_active: true,
         },
       },
     ]);
 
-    return NextResponse.json({ id: newUserId, email: payload.email, role: payload.role, businessId: targetBusinessId });
+    return NextResponse.json({
+      id: newUserId,
+      email: payload.email,
+      role: payload.role,
+      location: payload.role === "staff" ? payload.location || null : null,
+      businessId: targetBusinessId,
+    });
   } catch (error) {
     return NextResponse.json({ error: error.message || "Unexpected server error." }, { status: 500 });
   }

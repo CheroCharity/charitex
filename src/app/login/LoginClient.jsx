@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  Alert,
   Box,
   Button,
   Card,
@@ -15,6 +14,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useAuth } from "@/contexts/AuthContext";
+import StatusDialog from "@/components/StatusDialog";
 
 export default function LoginClient() {
   const isMountedRef = useRef(false);
@@ -89,8 +89,14 @@ export default function LoginClient() {
               <Typography color="text.secondary">Inventory tracking for your business</Typography>
             </Box>
 
-            {accessBlockedReason ? <Alert severity="warning">{accessBlockedReason}</Alert> : null}
-            {error ? <Alert severity="error">{error}</Alert> : null}
+            <StatusDialog
+              open={Boolean(accessBlockedReason)}
+              severity="warning"
+              title="Access Restricted"
+              message={accessBlockedReason || ""}
+              onClose={() => {}}
+            />
+            <StatusDialog open={Boolean(error)} severity="error" message={error} onClose={() => setError("")} />
 
             <Box component="form" onSubmit={handleSubmit}>
               <Stack spacing={2}>

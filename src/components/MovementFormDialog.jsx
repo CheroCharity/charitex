@@ -3,8 +3,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -18,9 +20,18 @@ import {
   useTheme,
 } from "@mui/material";
 
-export default function MovementFormDialog({ open, onClose, onSubmit, products, allowedTypes = ["IN", "OUT"] }) {
+export default function MovementFormDialog({
+  open,
+  onClose,
+  onSubmit,
+  products,
+  allowedTypes = ["IN", "OUT"],
+  initialValues = null,
+  submitting = false,
+}) {
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
+  const isEditMode = Boolean(initialValues?.id);
   const [form, setForm] = useState({
     productId: "",
     quantity: "",
@@ -36,32 +47,59 @@ export default function MovementFormDialog({ open, onClose, onSubmit, products, 
 
   useEffect(() => {
     if (open) {
+      if (isEditMode) {
+        setForm({
+          id: initialValues.id,
+          productId: initialValues.product_id || "",
+          quantity: String(initialValues.quantity ?? ""),
+          type: initialValues.type || (allowedTypes[0] || "OUT"),
+          paymentMethod: initialValues.payment_method || "",
+          buyingPrice:
+            initialValues.type === "IN"
+              ? String(initialValues.buying_price_snapshot ?? "")
+              : "",
+          sellingPrice:
+            initialValues.type === "IN"
+              ? String(initialValues.selling_price_snapshot ?? initialValues.unit_price_snapshot ?? "")
+              : "",
+          date: initialValues.date || today,
+          note: initialValues.note || "",
+        });
+        return;
+      }
+
       setForm((prev) => {
         const nextType = allowedTypes.includes(prev.type) ? prev.type : (allowedTypes[0] || "OUT");
         return {
           ...prev,
+          id: "",
+          productId: "",
+          quantity: "",
           date: prev.date || today,
           type: nextType,
           paymentMethod: nextType === "OUT" ? (prev.paymentMethod || "CASH") : "",
-          buyingPrice: nextType === "IN" ? prev.buyingPrice : "",
-          sellingPrice: nextType === "IN" ? prev.sellingPrice : "",
+          buyingPrice: "",
+          sellingPrice: "",
+          note: "",
         };
       });
     }
-  }, [open, today, allowedTypes]);
+  }, [open, today, allowedTypes, initialValues, isEditMode]);
 
   const handleChange = (field) => (event) => {
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
   };
 
   const handleSubmit = async () => {
+    if (submitting) return;
     await onSubmit(form);
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={fullScreen}>
-      <DialogTitle>Add Stock Transaction</DialogTitle>
+    <Dialog open={open} onClose={submitting ? undefined : onClose} fullWidth maxWidth="sm" fullScreen={fullScreen}>
+      <DialogTitle>{isEditMode ? "Edit Stock Transaction" : "Add Stock Transaction"}</DialogTitle>
       <DialogContent>
+        {isEditMode ? <Alert severity="info" sx={{ mb: 2 }}>Transaction type and product cannot be changed.</Alert> : null}
         <Box
           sx={{
             mt: 0.5,
@@ -78,6 +116,7 @@ export default function MovementFormDialog({ open, onClose, onSubmit, products, 
                 value={form.productId}
                 label="Product"
                 onChange={handleChange("productId")}
+                disabled={isEditMode}
               >
                 {products.map((p) => (
                   <MenuItem key={p.id} value={p.id}>
@@ -90,7 +129,7 @@ export default function MovementFormDialog({ open, onClose, onSubmit, products, 
           <Box>
             <FormControl fullWidth>
               <InputLabel id="type-select">Type</InputLabel>
-              <Select labelId="type-select" value={form.type} label="Type" onChange={handleChange("type")}>
+              <Select labelId="type-select" value={form.type} label="Type" onChange={handleChange("type")} disabled={isEditMode}>
                 {allowedTypes.includes("IN") ? <MenuItem value="IN">STOCK IN</MenuItem> : null}
                 {allowedTypes.includes("OUT") ? <MenuItem value="OUT">STOCK OUT</MenuItem> : null}
               </Select>
@@ -116,7 +155,7 @@ export default function MovementFormDialog({ open, onClose, onSubmit, products, 
             <TextField
               label="Quantity"
               type="number"
-              inputProps={{ min: 1 }}
+              // inputProps={{ min: 1 }}
               value={form.quantity}
               onChange={handleChange("quantity")}
               fullWidth
@@ -128,7 +167,7 @@ export default function MovementFormDialog({ open, onClose, onSubmit, products, 
                 <TextField
                   label="Buying Price"
                   type="number"
-                  inputProps={{ min: 0, step: "0.01" }}
+                  // inputProps={{ min: 0, step: "0.01" }}
                   value={form.buyingPrice}
                   onChange={handleChange("buyingPrice")}
                   fullWidth
@@ -138,7 +177,7 @@ export default function MovementFormDialog({ open, onClose, onSubmit, products, 
                 <TextField
                   label="Selling Price"
                   type="number"
-                  inputProps={{ min: 0, step: "0.01" }}
+                  // inputProps={{ min: 0, step: "0.01" }}
                   value={form.sellingPrice}
                   onChange={handleChange("sellingPrice")}
                   fullWidth
@@ -158,12 +197,15 @@ export default function MovementFormDialog({ open, onClose, onSubmit, products, 
           </Box>
           <Box sx={{ gridColumn: "1 / -1" }}>
             <TextField
-              label="Note (optional)"
+              label="Note"
               value={form.note}
               onChange={handleChange("note")}
               fullWidth
               multiline
               minRows={2}
+              required
+              placeholder="Enter customer name and M-PESA transaction ID (if applicable)."
+              helperText="Required. Include customer name and M-PESA transaction ID for STOCK OUT payments."
             />
           </Box>
         </Box>
@@ -172,8 +214,14 @@ export default function MovementFormDialog({ open, onClose, onSubmit, products, 
         <Button onClick={onClose} fullWidth={fullScreen}>
           Cancel
         </Button>
-        <Button variant="contained" onClick={handleSubmit} fullWidth={fullScreen}>
-          Save
+        <Button
+          variant="contained"
+          onClick={handleSubmit}
+          fullWidth={fullScreen}
+          disabled={submitting}
+          startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : null}
+        >
+          {submitting ? "Saving..." : isEditMode ? "Update" : "Save"}
         </Button>
       </DialogActions>
     </Dialog>

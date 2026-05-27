@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Alert, Box, Button, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Box, Button, Paper, Stack, TextField, Typography } from "@mui/material";
 import InventoryIcon from "@mui/icons-material/Inventory";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import WarningIcon from "@mui/icons-material/Warning";
@@ -10,8 +10,14 @@ import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import PhoneIphoneIcon from "@mui/icons-material/PhoneIphone";
 import StatCard from "@/components/StatCard";
 import MovementTable from "@/components/MovementTable";
+import StatusDialog from "@/components/StatusDialog";
 import { useAuth } from "@/contexts/AuthContext";
-import { getProductsWithStock, getTransactions } from "@/services/stockService";
+import {
+  getProductsWithStock,
+  getTotalInventoryValueAcrossBusinesses,
+  getTotalInvestedAmountAcrossBusinesses,
+  getTransactions,
+} from "@/services/stockService";
 import { computeInventorySummary } from "@/utils/inventory";
 
 function toCurrency(value) {
@@ -40,6 +46,7 @@ export default function DashboardPage() {
   const [rows, setRows] = useState([]);
   const [summary, setSummary] = useState({ totalProducts: 0, totalInventoryValue: 0, lowStockCount: 0 });
   const [paymentSummary, setPaymentSummary] = useState({ cashIn: 0, mpesaIn: 0 });
+  const [investedAmount, setInvestedAmount] = useState(0);
   const [netReturnSummary, setNetReturnSummary] = useState({
     salesRevenue: 0,
     costOfGoodsSold: 0,
@@ -65,7 +72,31 @@ export default function DashboardPage() {
           getProductsWithStock(businessId),
           getTransactions(businessId, period),
         ]);
-        setSummary(computeInventorySummary(products));
+
+        const summaryForSelectedBusiness = computeInventorySummary(products);
+        const investedForSelectedBusiness = transactions.reduce((acc, tx) => {
+          if (tx.type !== "IN") return acc;
+          const qty = Number(tx.quantity || 0);
+          const buyingPrice = Number(tx.buying_price_snapshot || tx.unit_price_snapshot || 0);
+          return acc + qty * buyingPrice;
+        }, 0);
+
+        if (isSuperAdmin) {
+          const [totalInventoryAcrossAllBusinesses, totalInvestedAcrossAllBusinesses] = await Promise.all([
+            getTotalInventoryValueAcrossBusinesses(),
+            getTotalInvestedAmountAcrossBusinesses(period),
+          ]);
+
+          setSummary({
+            ...summaryForSelectedBusiness,
+            totalInventoryValue: totalInventoryAcrossAllBusinesses,
+          });
+          setInvestedAmount(totalInvestedAcrossAllBusinesses);
+        } else {
+          setSummary(summaryForSelectedBusiness);
+          setInvestedAmount(investedForSelectedBusiness);
+        }
+
         const payments = transactions.reduce(
           (acc, tx) => {
             if (tx.type !== "OUT") return acc;
@@ -124,7 +155,7 @@ export default function DashboardPage() {
     }
 
     load();
-  }, [businessId, period.from, period.to]);
+  }, [businessId, isSuperAdmin, period.from, period.to]);
 
   const handlePeriodChange = (field) => (event) => {
     setDraftPeriod((prev) => ({ ...prev, [field]: event.target.value }));
@@ -148,7 +179,7 @@ export default function DashboardPage() {
         Dashboard
       </Typography>
 
-      {error ? <Alert severity="error">{error}</Alert> : null}
+      <StatusDialog open={Boolean(error)} severity="error" message={error} onClose={() => setError("")} />
 
       <Paper sx={{ p: 2 }}>
         <Stack spacing={2}>
@@ -201,15 +232,28 @@ export default function DashboardPage() {
           },
         }}
       >
-        <Box>
-          <StatCard
-            title="Total Inventory Value"
-            value={toCurrency(summary.totalInventoryValue)}
-            icon={<AttachMoneyIcon />}
-            iconColor="rgba(226, 106, 75, 0.9)"
-            iconBg="rgba(226, 106, 75, 0.12)"
-          />
-        </Box>
+        {isAdmin || isSuperAdmin ? (
+          <Box>
+            <StatCard
+              title="Current In-Shop Stock Value"
+              value={toCurrency(summary.totalInventoryValue)}
+              icon={<AttachMoneyIcon />}
+              iconColor="rgba(226, 106, 75, 0.9)"
+              iconBg="rgba(226, 106, 75, 0.12)"
+            />
+          </Box>
+        ) : null}
+        {isAdmin || isSuperAdmin ? (
+          <Box>
+            <StatCard
+              title="Total Invested Amount"
+              value={toCurrency(investedAmount)}
+              icon={<AttachMoneyIcon />}
+              iconColor="#0F766E"
+              iconBg="rgba(15, 118, 110, 0.12)"
+            />
+          </Box>
+        ) : null}
         <Box>
           <StatCard
             title="Total Products"

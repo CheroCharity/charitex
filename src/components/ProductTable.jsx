@@ -76,7 +76,7 @@ export default function ProductTable({ products, onEdit, onDelete, canManage = t
                 </TableCell>
                 {canManage ? (
                   <TableCell align="right">
-                    <Stack direction="row" spacing={1} justifyContent="flex-end">
+                    <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end" }}>
                       <Tooltip title="Edit">
                         <IconButton size="small" onClick={() => onEdit(product)}>
                           <EditIcon fontSize="small" />

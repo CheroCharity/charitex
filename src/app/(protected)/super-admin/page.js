@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Alert,
   Button,
   Chip,
   CircularProgress,
@@ -18,6 +17,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import StatusDialog from "@/components/StatusDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { getBusinessesOverview, onboardBusinessWithUsers } from "@/services/userService";
 
@@ -30,6 +30,7 @@ export default function SuperAdminPage() {
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     businessName: "",
+    businessLocations: "",
     adminEmail: "",
     adminPassword: "",
     staffEntries: "",
@@ -69,15 +70,21 @@ export default function SuperAdminPage() {
           return { email: String(email).toLowerCase(), password };
         });
 
+      const businessLocations = form.businessLocations
+        .split(/[\n,]/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+
       await onboardBusinessWithUsers({
         businessName: form.businessName,
+        businessLocations,
         adminEmail: form.adminEmail,
         adminPassword: form.adminPassword,
         staff,
       });
 
       setSuccess("Business onboarded successfully.");
-      setForm({ businessName: "", adminEmail: "", adminPassword: "", staffEntries: "" });
+      setForm({ businessName: "", businessLocations: "", adminEmail: "", adminPassword: "", staffEntries: "" });
       await loadBusinesses();
     } catch (err) {
       setError(err.message || "Failed to onboard business.");
@@ -92,7 +99,15 @@ export default function SuperAdminPage() {
   };
 
   if (!isSuperAdmin) {
-    return <Alert severity="warning">Only super admins can access this page.</Alert>;
+    return (
+      <StatusDialog
+        open
+        severity="warning"
+        title="Access Restricted"
+        message="Only super admins can access this page."
+        onClose={() => {}}
+      />
+    );
   }
 
   return (
@@ -104,12 +119,22 @@ export default function SuperAdminPage() {
       <Paper sx={{ p: 2 }}>
         <Stack spacing={2}>
           <Typography variant="h6">Onboard New Business</Typography>
-          {error ? <Alert severity="error">{error}</Alert> : null}
-          {success ? <Alert severity="success">{success}</Alert> : null}
+          <StatusDialog open={Boolean(error)} severity="error" message={error} onClose={() => setError("")} />
+          <StatusDialog open={Boolean(success)} severity="success" message={success} onClose={() => setSuccess("")} />
           <TextField
             label="Business Name"
             value={form.businessName}
             onChange={(e) => setForm((prev) => ({ ...prev, businessName: e.target.value }))}
+            fullWidth
+          />
+          <TextField
+            label="Business Location(s)"
+            value={form.businessLocations}
+            onChange={(e) => setForm((prev) => ({ ...prev, businessLocations: e.target.value }))}
+            placeholder={"One per line or comma-separated\nWestlands\nCBD"}
+            helperText="Optional. Add one or multiple locations for this business."
+            multiline
+            minRows={3}
             fullWidth
           />
           <TextField
@@ -155,6 +180,7 @@ export default function SuperAdminPage() {
           <TableHead>
             <TableRow>
               <TableCell>Business</TableCell>
+              <TableCell>Locations</TableCell>
               <TableCell>Admins</TableCell>
               <TableCell>Staff</TableCell>
               <TableCell>Created</TableCell>
@@ -164,7 +190,7 @@ export default function SuperAdminPage() {
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5}>
+                <TableCell colSpan={6}>
                   <Typography color="text.secondary" align="center" py={2}>
                     No businesses found.
                   </Typography>
@@ -181,6 +207,7 @@ export default function SuperAdminPage() {
                       </Typography>
                     </Stack>
                   </TableCell>
+                  <TableCell>{Array.isArray(item.locations) && item.locations.length ? item.locations.join(", ") : "-"}</TableCell>
                   <TableCell>
                     <Chip size="small" label={item.admins} color="primary" />
                   </TableCell>

@@ -47,6 +47,13 @@ export function getAppTheme(mode = "light") {
     shape: {
       borderRadius: 12,
     },
+    zIndex: {
+      appBar: 1100,
+      drawer: 1200,
+      modal: 1300,
+      snackbar: 1800,
+      tooltip: 1900,
+    },
     typography: {
       fontFamily: '"Inter", "Segoe UI", "Roboto", "Helvetica", "Arial", sans-serif',
       h4: {
@@ -324,6 +331,21 @@ export function getAppTheme(mode = "light") {
             "&.Mui-focused": {
               color: "rgba(226, 106, 75, 0.9)",
             },
+          },
+        },
+      },
+      MuiSnackbar: {
+        styleOverrides: {
+          root: {
+            zIndex: 1800,
+          },
+        },
+      },
+      MuiAlert: {
+        styleOverrides: {
+          root: {
+            zIndex: 1800,
+            position: "relative",
           },
         },
       },

@@ -52,6 +52,11 @@ Charitex is a full-stack inventory tracking MVP for small and medium businesses.
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY` (required for admin onboarding API route)
+   - `SUPABASE_JWT_SECRET` (optional, used only as local fallback if your machine cannot validate Supabase TLS certificates)
+
+   If you see local server errors such as `UNABLE_TO_GET_ISSUER_CERT_LOCALLY` while validating tokens, either:
+   - trust your corporate/local root CA via `NODE_EXTRA_CA_CERTS`, or
+   - set `SUPABASE_JWT_SECRET` (Project Settings -> API -> JWT Secret) for local JWT verification fallback.
 
 4. In Supabase SQL editor, run:
    - `supabase/schema.sql`

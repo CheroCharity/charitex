@@ -1,16 +1,35 @@
 import { supabase } from "@/services/supabaseClient";
 
 export async function getTeamUsers({ businessId, isSuperAdmin }) {
-  let query = supabase
+  const selectWithLocation = "id, email, role, location, business_id, is_super_admin, is_active, created_at, businesses(name, is_frozen)";
+  const selectWithoutLocation = "id, email, role, business_id, is_super_admin, is_active, created_at, businesses(name, is_frozen)";
+
+  let queryWithLocation = supabase
     .from("users_profile")
-    .select("id, email, role, business_id, is_super_admin, is_active, created_at, businesses(name, is_frozen)")
+    .select(selectWithLocation)
     .order("created_at", { ascending: false });
 
   if (!isSuperAdmin) {
-    query = query.eq("business_id", businessId);
+    queryWithLocation = queryWithLocation.eq("business_id", businessId);
   }
 
-  const { data, error } = await query;
+  const { data, error } = await queryWithLocation;
+
+  if (error && String(error.message || "").toLowerCase().includes("location")) {
+    let fallbackQuery = supabase
+      .from("users_profile")
+      .select(selectWithoutLocation)
+      .order("created_at", { ascending: false });
+
+    if (!isSuperAdmin) {
+      fallbackQuery = fallbackQuery.eq("business_id", businessId);
+    }
+
+    const { data: fallbackData, error: fallbackError } = await fallbackQuery;
+    if (fallbackError) throw fallbackError;
+    return (fallbackData || []).map((item) => ({ ...item, location: null }));
+  }
+
   if (error) throw error;
   return data || [];
 }
@@ -38,12 +57,30 @@ export async function getAllBusinessAdmins() {
 }
 
 export async function getBusinessesOverview() {
-  const [{ data: businesses, error: businessError }, { data: users, error: usersError }] = await Promise.all([
-    supabase.from("businesses").select("id, name, is_frozen, created_at").order("created_at", { ascending: false }),
-    supabase.from("users_profile").select("business_id, role"),
-  ]);
+  const businessesQueryWithLocations = supabase
+    .from("businesses")
+    .select("id, name, locations, is_frozen, created_at")
+    .order("created_at", { ascending: false });
 
-  if (businessError) throw businessError;
+  const usersQuery = supabase.from("users_profile").select("business_id, role");
+
+  const [{ data: businessesWithLocations, error: businessError }, { data: users, error: usersError }] =
+    await Promise.all([businessesQueryWithLocations, usersQuery]);
+
+  let businesses = businessesWithLocations;
+
+  if (businessError && String(businessError.message || "").toLowerCase().includes("locations")) {
+    const { data: fallbackBusinesses, error: fallbackError } = await supabase
+      .from("businesses")
+      .select("id, name, is_frozen, created_at")
+      .order("created_at", { ascending: false });
+
+    if (fallbackError) throw fallbackError;
+    businesses = (fallbackBusinesses || []).map((item) => ({ ...item, locations: [] }));
+  } else if (businessError) {
+    throw businessError;
+  }
+
   if (usersError) throw usersError;
 
   const counts = (users || []).reduce((acc, row) => {
@@ -93,7 +130,7 @@ export async function onboardBusiness({ businessName, adminEmail, staffEmails })
   return data;
 }
 
-export async function onboardBusinessWithUsers({ businessName, adminEmail, adminPassword, staff }) {
+export async function onboardBusinessWithUsers({ businessName, adminEmail, adminPassword, staff, businessLocations }) {
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -108,7 +145,7 @@ export async function onboardBusinessWithUsers({ businessName, adminEmail, admin
       "Content-Type": "application/json",
       Authorization: `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify({ businessName, adminEmail, adminPassword, staff }),
+    body: JSON.stringify({ businessName, adminEmail, adminPassword, staff, businessLocations }),
   });
 
   const payload = await response.json();
@@ -119,7 +156,7 @@ export async function onboardBusinessWithUsers({ businessName, adminEmail, admin
   return payload;
 }
 
-export async function onboardUserAccount({ email, password, role, businessId }) {
+export async function onboardUserAccount({ email, password, role, businessId, location }) {
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -134,7 +171,7 @@ export async function onboardUserAccount({ email, password, role, businessId }) 
       "Content-Type": "application/json",
       Authorization: `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify({ email, password, role, businessId }),
+    body: JSON.stringify({ email, password, role, businessId, location }),
   });
 
   const payload = await response.json();
@@ -159,6 +196,27 @@ export async function setBusinessFrozenStatus(targetBusinessId, isFrozen) {
     target_business_id: targetBusinessId,
     freeze_business: isFrozen,
   });
+
+  if (error) throw error;
+}
+
+export async function setBusinessUserLocation(targetUserId, location) {
+  const normalizedLocation = String(location || "").trim() || null;
+
+  const { error } = await supabase.rpc("set_business_user_location", {
+    target_user_id: targetUserId,
+    new_location: normalizedLocation,
+  });
+
+  if (error && String(error.message || "").toLowerCase().includes("set_business_user_location")) {
+    const { error: fallbackError } = await supabase
+      .from("users_profile")
+      .update({ location: normalizedLocation })
+      .eq("id", targetUserId);
+
+    if (fallbackError) throw fallbackError;
+    return;
+  }
 
   if (error) throw error;
 }

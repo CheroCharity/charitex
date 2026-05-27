@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import {
   Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -21,7 +22,7 @@ const emptyForm = {
   unitPrice: "",
 };
 
-export default function ProductFormDialog({ open, onClose, onSubmit, initialValues }) {
+export default function ProductFormDialog({ open, onClose, onSubmit, initialValues, submitting = false }) {
   const [form, setForm] = useState(emptyForm);
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
@@ -44,11 +45,12 @@ export default function ProductFormDialog({ open, onClose, onSubmit, initialValu
   };
 
   const handleSubmit = async () => {
+    if (submitting) return;
     await onSubmit(form);
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={fullScreen}>
+    <Dialog open={open} onClose={submitting ? undefined : onClose} fullWidth maxWidth="sm" fullScreen={fullScreen}>
       <DialogTitle>{initialValues ? "Edit Product" : "Add Product"}</DialogTitle>
       <DialogContent>
         <Box
@@ -85,8 +87,14 @@ export default function ProductFormDialog({ open, onClose, onSubmit, initialValu
         <Button onClick={onClose} fullWidth={fullScreen}>
           Cancel
         </Button>
-        <Button onClick={handleSubmit} variant="contained" fullWidth={fullScreen}>
-          Save
+        <Button
+          onClick={handleSubmit}
+          variant="contained"
+          fullWidth={fullScreen}
+          disabled={submitting}
+          startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : null}
+        >
+          {submitting ? "Saving..." : "Save"}
         </Button>
       </DialogActions>
     </Dialog>
